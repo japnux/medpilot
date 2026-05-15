@@ -1,60 +1,67 @@
 @import "tailwindcss";
 
 /*
-  MedPilot — Design system d'après DESIGN.md
-  Inspiration : ElevenLabs editorial. Off-white canvas + warm near-black ink.
-  Pas de couleur saturée pour les CTAs, ink pill uniquement.
-  Atmosphère pastel via gradient orbs (mint/peach/lavender/sky/rose).
+  MedPilot — Design system d'après stripe/DESIGN.md (Stripi-inspired).
+  Canvas blanc, ink navy, primary indigo électrique, pills tight-radius.
+  Atmosphère via gradient orbs (cream / peach / lavender / indigo / rose).
 */
 
 :root {
-  /* Ink / primary */
-  --primary: #292524;
-  --primary-active: #0c0a09;
-  --ink: #0c0a09;
+  /* Primary / brand */
+  --primary: #533afd;
+  --primary-deep: #4434d4;
+  --primary-press: #2e2b8c;
+  --primary-soft: #665efd;
+  --primary-subdued: #b9b9f9;
+  --brand-dark-900: #1c1e54;
 
-  /* Text */
-  --body: #4e4e4e;
-  --body-strong: #292524;
-  --muted: #777169;
-  --muted-soft: #a8a29e;
+  /* Ink / text */
+  --ink: #0d253d;
+  --ink-secondary: #273951;
+  --body: #61718a;
+  --body-strong: #273951;
+  --muted: #64748d;
+  --muted-soft: #94a3b8;
 
   /* Hairlines */
-  --hairline: #e7e5e4;
-  --hairline-soft: #f0efed;
-  --hairline-strong: #d6d3d1;
+  --hairline: #e3e8ee;
+  --hairline-soft: #eef2f7;
+  --hairline-strong: #a8c3de;
 
   /* Surfaces */
-  --canvas: #f5f5f5;
-  --canvas-soft: #fafafa;
-  --canvas-deep: #0c0a09;
+  --canvas: #ffffff;
+  --canvas-soft: #f6f9fc;
+  --canvas-cream: #f5e9d4;
+  --canvas-deep: #0d253d;
   --surface-card: #ffffff;
-  --surface-strong: #f0efed;
-  --surface-dark: #0c0a09;
-  --surface-dark-elevated: #1c1917;
+  --surface-strong: #f6f9fc;
+  --surface-dark: #1c1e54;
+  --surface-dark-elevated: #273951;
 
   /* On colors */
   --on-primary: #ffffff;
   --on-dark: #ffffff;
-  --on-dark-soft: #a8a29e;
+  --on-dark-soft: #a8c3de;
 
-  /* Atmospheric gradient stops (décoratifs uniquement) */
-  --gradient-mint: #a7e5d3;
-  --gradient-peach: #f4c5a8;
+  /* Atmospheric gradient stops (mesh décoratif) */
+  --gradient-mint: #c8e8d4;
+  --gradient-peach: #ffb98e;
   --gradient-lavender: #c8b8e0;
   --gradient-sky: #a8c8e8;
-  --gradient-rose: #e8b8c4;
+  --gradient-rose: #f96bee;
+  --gradient-indigo: #665efd;
+  --gradient-cream: #f5e9d4;
 
   /* Semantic */
   --success: #16a34a;
   --warning: #d97706;
-  --error: #dc2626;
+  --error: #ea2261;
 }
 
-/* Tokens Tailwind v4 — exposent les vars CSS comme classes utility */
 @theme inline {
   --color-canvas: var(--canvas);
   --color-canvas-soft: var(--canvas-soft);
+  --color-canvas-cream: var(--canvas-cream);
   --color-canvas-deep: var(--canvas-deep);
   --color-surface-card: var(--surface-card);
   --color-surface-strong: var(--surface-strong);
@@ -72,7 +79,10 @@
   --color-hairline-strong: var(--hairline-strong);
 
   --color-primary: var(--primary);
-  --color-primary-active: var(--primary-active);
+  --color-primary-deep: var(--primary-deep);
+  --color-primary-active: var(--primary-press);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-subdued: var(--primary-subdued);
 
   --color-on-primary: var(--on-primary);
   --color-on-dark: var(--on-dark);
@@ -87,51 +97,57 @@
   --color-orb-lavender: var(--gradient-lavender);
   --color-orb-sky: var(--gradient-sky);
   --color-orb-rose: var(--gradient-rose);
+  --color-orb-indigo: var(--gradient-indigo);
+  --color-orb-cream: var(--gradient-cream);
 
   --font-sans: var(--font-inter);
-  --font-display: var(--font-display);
+  --font-display: var(--font-inter);
 }
 
 body {
   background: var(--canvas);
   color: var(--body);
-  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter), -apple-system, "SF Pro Display", system-ui, sans-serif;
   font-feature-settings: "ss01";
-  letter-spacing: 0.16px;
+  font-weight: 300;
+  line-height: 1.4;
 }
 
-/* Display = serif éditorial (EB Garamond comme substitut Waldenburg) */
+/* Display = Inter 300 + negative letter-spacing (Sohne-like) */
 h1, h2, h3, h4, h5, h6,
 .display {
-  font-family: var(--font-display), "Times New Roman", serif;
+  font-family: var(--font-inter), -apple-system, "SF Pro Display", system-ui, sans-serif;
   font-weight: 300;
   color: var(--ink);
   letter-spacing: -0.32px;
 }
 
-/* Hauteurs ajustées au design system */
-h1 { font-size: 48px; line-height: 1.08; letter-spacing: -0.96px; }
-h2 { font-size: 32px; line-height: 1.13; letter-spacing: -0.32px; }
-h3 { font-size: 24px; line-height: 1.2; letter-spacing: 0; }
+h1 { font-size: 48px; line-height: 1.15; letter-spacing: -0.96px; }
+h2 { font-size: 26px; line-height: 1.12; letter-spacing: -0.26px; }
+h3 { font-size: 20px; line-height: 1.4; letter-spacing: -0.2px; }
 
-/* Inputs */
+/* Tabular figures pour les chiffres médicaux */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
 input, textarea, select, button { font-family: inherit; }
 
-/* Mode impression pour exports PDF */
 @media print {
   body { background: white; color: black; }
   .no-print { display: none !important; }
 }
 
-/* Utilities éditoriales */
+/* Utilities */
 .btn-primary {
   background-color: var(--primary);
   color: var(--on-primary);
   border-radius: 9999px;
-  padding: 10px 20px;
-  height: 40px;
-  font-size: 15px;
-  font-weight: 500;
+  padding: 8px 16px;
+  height: 36px;
+  font-size: 16px;
+  font-weight: 400;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -139,51 +155,53 @@ input, textarea, select, button { font-family: inherit; }
   transition: background-color 0.15s ease;
   border: none;
   cursor: pointer;
-  font-family: var(--font-inter);
+  font-family: inherit;
+  letter-spacing: 0;
 }
-.btn-primary:hover:not(:disabled) { background-color: var(--primary-active); }
+.btn-primary:hover:not(:disabled) { background-color: var(--primary-deep); }
+.btn-primary:active:not(:disabled) { background-color: var(--primary-press); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .btn-outline {
-  background-color: transparent;
-  color: var(--ink);
-  border: 1px solid var(--hairline-strong);
+  background-color: var(--canvas);
+  color: var(--primary);
+  border: 1px solid var(--hairline);
   border-radius: 9999px;
-  padding: 9px 19px;
-  height: 40px;
-  font-size: 15px;
-  font-weight: 500;
+  padding: 8px 16px;
+  height: 36px;
+  font-size: 16px;
+  font-weight: 400;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   transition: border-color 0.15s ease, background-color 0.15s ease;
   cursor: pointer;
-  font-family: var(--font-inter);
+  font-family: inherit;
 }
-.btn-outline:hover:not(:disabled) { border-color: var(--ink); background-color: var(--hairline-soft); }
+.btn-outline:hover:not(:disabled) { border-color: var(--primary); background-color: var(--canvas-soft); }
 .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .card-feature {
   background-color: var(--surface-card);
   border: 1px solid var(--hairline);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 24px;
-  transition: box-shadow 0.15s ease;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .card-feature:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 16px rgba(13, 37, 61, 0.06);
 }
 
 .badge-pill {
-  background-color: var(--surface-strong);
-  color: var(--ink);
+  background-color: var(--primary-subdued);
+  color: var(--primary-deep);
   border-radius: 9999px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.4;
-  letter-spacing: 0.96px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: 0.1px;
   text-transform: uppercase;
   display: inline-flex;
   align-items: center;
@@ -191,30 +209,50 @@ input, textarea, select, button { font-family: inherit; }
 }
 
 .input-base {
-  background-color: var(--surface-card);
+  background-color: var(--canvas);
   color: var(--ink);
-  border: 1px solid var(--hairline-strong);
-  border-radius: 8px;
-  padding: 12px 16px;
-  height: 44px;
-  font-size: 16px;
-  letter-spacing: 0.16px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 8px 12px;
+  height: 38px;
+  font-size: 15px;
   width: 100%;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.input-base:focus { outline: none; border-color: var(--ink); border-width: 2px; padding: 11px 15px; }
+.input-base:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(83, 58, 253, 0.15);
+}
 
-/* Atmospheric gradient orbs (décoratifs uniquement) */
+/* Gradient mesh atmosphérique (Stripi signature) */
+.gradient-mesh {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 50% 60% at 15% 30%, var(--gradient-cream) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 50% at 50% 20%, var(--gradient-peach) 0%, transparent 55%),
+    radial-gradient(ellipse 45% 55% at 75% 35%, var(--gradient-lavender) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 50% at 90% 15%, var(--gradient-indigo) 0%, transparent 50%),
+    radial-gradient(ellipse 35% 45% at 35% 60%, var(--gradient-rose) 0%, transparent 50%);
+  opacity: 0.6;
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .orb {
   position: absolute;
   border-radius: 9999px;
   filter: blur(60px);
-  opacity: 0.55;
+  opacity: 0.5;
   pointer-events: none;
   z-index: 0;
 }
-.orb-mint    { background: radial-gradient(circle, var(--gradient-mint), transparent 70%); }
-.orb-peach   { background: radial-gradient(circle, var(--gradient-peach), transparent 70%); }
-.orb-lavender{ background: radial-gradient(circle, var(--gradient-lavender), transparent 70%); }
-.orb-sky     { background: radial-gradient(circle, var(--gradient-sky), transparent 70%); }
-.orb-rose    { background: radial-gradient(circle, var(--gradient-rose), transparent 70%); }
+.orb-mint     { background: radial-gradient(circle, var(--gradient-mint), transparent 70%); }
+.orb-peach    { background: radial-gradient(circle, var(--gradient-peach), transparent 70%); }
+.orb-lavender { background: radial-gradient(circle, var(--gradient-lavender), transparent 70%); }
+.orb-sky      { background: radial-gradient(circle, var(--gradient-sky), transparent 70%); }
+.orb-rose     { background: radial-gradient(circle, var(--gradient-rose), transparent 70%); }
+.orb-indigo   { background: radial-gradient(circle, var(--gradient-indigo), transparent 70%); }
+.orb-cream    { background: radial-gradient(circle, var(--gradient-cream), transparent 70%); }
