@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { CANCER_PROFILES, type MarkerDef } from "@/lib/cancer-profiles";
-import MarkerCard from "@/components/dashboard/MarkerCard";
+import MarkersByCategory from "@/components/dashboard/MarkersByCategory";
 import BiologyTrendsCard from "@/components/dashboard/BiologyTrendsCard";
 import BilansHistory from "@/components/dashboard/BilansHistory";
 import AlertBanner from "@/components/shared/AlertBanner";
@@ -162,22 +162,7 @@ export default async function BiologiePage() {
         </div>
       ) : (
         <>
-          <section className="space-y-3">
-            <h2 className="text-base font-medium text-ink border-b border-hairline pb-2">
-              Marqueurs & évolutions
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {markersWithData.map(([key, marker]) => (
-                <MarkerCard
-                  key={key}
-                  markerKey={key}
-                  marker={marker}
-                  records={byMarker[key] ?? []}
-                />
-              ))}
-            </div>
-          </section>
-
+          <MarkersByCategory markers={markers} byMarker={byMarker} />
           <BilansHistory bilans={bilans} markers={markers} />
         </>
       )}
