@@ -39,6 +39,13 @@ const CANCER_TABS = [
   { id: "recherche", label: "Recherche & options" },
 ];
 
+const WATCH_TABS_NAV = [
+  { id: "synthese", label: "Synthèse" },
+  { id: "actions", label: "Actions à mener" },
+  { id: "reseau", label: "Réseau & ressources" },
+  { id: "publications", label: "Publications" },
+];
+
 interface SidebarProps {
   cancerType?: string | null;
   /** Prénom du patient pour l'identité en haut de sidebar. */
@@ -80,7 +87,7 @@ export default function Sidebar({ cancerType, patientName }: SidebarProps) {
     },
     { href: "/consultation", label: "Consultation", emoji: "🩺" },
     { href: "/timeline", label: "Timeline", emoji: "🗓️" },
-    { href: "/watch", label: "Veille", emoji: "🔭" },
+    { href: "/watch", label: "Veille", emoji: "🔭", tabs: WATCH_TABS_NAV },
   ];
   if (cancerType) {
     NAV.push({

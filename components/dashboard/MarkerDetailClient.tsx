@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CartesianGrid,
@@ -12,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowLeft, FileText, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { ArrowLeft, FileText, TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
 import type { MarkerDef } from "@/lib/cancer-profiles";
 import {
   getMarkerStatus,
@@ -47,6 +48,37 @@ export default function MarkerDetailClient({ markerKey, marker, records }: Props
   const status = getMarkerStatus(last.value, marker);
   const statusColor = getStatusColor(status);
   const category = MARKER_CATEGORIES.find((c) => c.key === categorizeMarker(markerKey));
+
+  // Description lazy : si manquante, on la fetch via /api/markers/describe.
+  // Une fois générée, elle est stockée en BDD (cancer_profiles.custom_markers).
+  const [description, setDescription] = useState<string | null>(
+    marker.description?.trim() ? marker.description : null,
+  );
+  const [loadingDescription, setLoadingDescription] = useState(false);
+
+  useEffect(() => {
+    if (description) return;
+    let cancelled = false;
+    setLoadingDescription(true);
+    fetch("/api/markers/describe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ marker_name: markerKey, marker_label: marker.label }),
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled) return;
+        if (j?.description) setDescription(j.description);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingDescription(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markerKey]);
 
   // Données du chart (date asc)
   const chartData = [...records]
@@ -95,9 +127,14 @@ export default function MarkerDetailClient({ markerKey, marker, records }: Props
           </div>
         </header>
 
-        {marker.description && (
-          <p className="text-sm text-body leading-relaxed">{marker.description}</p>
-        )}
+        {description ? (
+          <p className="text-sm text-body leading-relaxed">{description}</p>
+        ) : loadingDescription ? (
+          <p className="text-xs text-muted italic inline-flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3 animate-pulse" />
+            Génération de la description...
+          </p>
+        ) : null}
 
         {/* Plage optimale en bandeau vert */}
         <div className="inline-flex items-center gap-2">

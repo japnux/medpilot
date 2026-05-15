@@ -876,10 +876,15 @@ function ExpertNetworkBlock({ network }: { network: CancerKnowledge["expert_netw
 }
 
 function ResourcesBlock({ resources }: { resources: CancerKnowledge["patient_resources"] }) {
-  if (resources.length === 0) return <NoteFallback />;
+  // Filtre les items vides (sans nom ni description ni URL) — Claude peut
+  // produire des placeholder objects dans certaines sections
+  const valid = resources.filter(
+    (r) => r && (r.name || r.description || r.url),
+  );
+  if (valid.length === 0) return <NoteFallback />;
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-      {resources.map((r, i) => {
+      {valid.map((r, i) => {
         // Tolère un champ "contact" en plus de "url" (sortie Haiku)
         const url =
           r.url ?? (r as unknown as { contact?: string }).contact ?? null;
