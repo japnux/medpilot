@@ -7,6 +7,7 @@ import {
   Activity,
   Stethoscope,
   History,
+  Telescope,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -17,6 +18,7 @@ const NAV = [
   { href: "/biologie", label: "Biologie", icon: Activity },
   { href: "/consultation", label: "Consultation", icon: Stethoscope },
   { href: "/timeline", label: "Timeline", icon: History },
+  { href: "/watch", label: "Veille", icon: Telescope },
 ];
 
 /**
@@ -87,7 +89,7 @@ export default function Sidebar() {
       </aside>
 
       {/* Mobile : bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-hairline bg-canvas grid grid-cols-5 no-print">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-hairline bg-canvas grid grid-cols-6 no-print">
         {[...NAV, { href: "/settings", label: "Réglages", icon: Settings }].map(
           (item) => {
             const active = pathname.startsWith(item.href);

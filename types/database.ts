@@ -293,6 +293,43 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["symptom_logs"]["Insert"]>;
         Relationships: [];
       };
+      watch_findings: {
+        Row: {
+          id: string;
+          family_id: string;
+          generated_at: string;
+          generated_by: string | null;
+          patient_context: Json;
+          clinical_trials: Json;
+          publications: Json;
+          expert_centers: Json;
+          patient_resources: Json;
+          contextual_alerts: Json;
+          executive_summary: string | null;
+          top_priorities: Json;
+          model_used: string;
+          token_usage: Json | null;
+          is_archived: boolean;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          generated_by?: string | null;
+          patient_context: Json;
+          clinical_trials?: Json;
+          publications?: Json;
+          expert_centers?: Json;
+          patient_resources?: Json;
+          contextual_alerts?: Json;
+          executive_summary?: string | null;
+          top_priorities?: Json;
+          model_used?: string;
+          token_usage?: Json | null;
+          is_archived?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["watch_findings"]["Insert"]>;
+        Relationships: [];
+      };
       ai_cache: {
         Row: {
           id: string;
