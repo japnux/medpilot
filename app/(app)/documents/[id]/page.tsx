@@ -3,8 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AnalysisTabs from "@/components/analyzer/AnalysisTabs";
 import type { DocumentAnalysisResult } from "@/lib/prompts";
-import { formatDateFr } from "@/lib/dates";
-import { ArrowLeft, FileText } from "lucide-react";
+import { formatDateFr, formatDateShort } from "@/lib/dates";
+import { ArrowLeft, FileText, Download, User } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,7 @@ interface PageProps {
 /**
  * Page détail d'un document médical : ré-affiche l'analyse Claude (4 onglets)
  * directement depuis le JSONB stocké en base. Pas de nouvel appel Claude.
+ * Si un PDF source est stocké (storage_path), affiche un bouton de téléchargement.
  */
 export default async function DocumentDetailPage({ params }: PageProps) {
   const { id } = await params;
@@ -26,14 +27,26 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 
   const { data: doc } = await supabase
     .from("medical_documents")
-    .select("id, family_id, title, document_type, document_date, created_at, analysis_summary, raw_text")
+    .select(
+      "id, family_id, title, document_type, document_date, created_at, analysis_summary, raw_text, doctor_name, storage_path",
+    )
     .eq("id", id)
     .maybeSingle();
 
   if (!doc) notFound();
 
-  // L'analysis_summary contient le JSON Claude (DocumentAnalysisResult)
   const analysis = doc.analysis_summary as unknown as DocumentAnalysisResult | null;
+
+  // Si on a un PDF stocké, générer une URL signée (1h) pour le téléchargement
+  let downloadUrl: string | null = null;
+  if (doc.storage_path) {
+    const { data: signed } = await supabase.storage
+      .from("medical-documents")
+      .createSignedUrl(doc.storage_path, 3600, {
+        download: `${doc.title.replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`,
+      });
+    downloadUrl = signed?.signedUrl ?? null;
+  }
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -44,20 +57,53 @@ export default async function DocumentDetailPage({ params }: PageProps) {
         <ArrowLeft className="w-3.5 h-3.5" /> Retour
       </Link>
 
-      <header className="space-y-2">
+      <header className="space-y-3">
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-orange-700" />
-          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-strong text-body">
-            {doc.document_type}
-          </span>
+          <span className="badge-pill">{doc.document_type}</span>
         </div>
         <h1 className="text-2xl font-semibold text-ink">{doc.title}</h1>
-        <p className="text-sm text-muted">
-          {doc.document_date
-            ? `Document daté du ${formatDateFr(doc.document_date)}`
-            : "Date du document inconnue"}
-          {" · "}analysé le {formatDateFr(doc.created_at)}
-        </p>
+
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
+          <span>
+            {doc.document_date
+              ? formatDateShort(doc.document_date)
+              : "Date inconnue"}
+          </span>
+          {doc.doctor_name && (
+            <>
+              <span className="text-muted-soft">·</span>
+              <span className="inline-flex items-center gap-1">
+                <User className="w-3.5 h-3.5" />
+                {doc.doctor_name}
+              </span>
+            </>
+          )}
+          <span className="text-muted-soft">·</span>
+          <span>analysé le {formatDateFr(doc.created_at)}</span>
+          {downloadUrl && (
+            <a
+              href={downloadUrl}
+              className="ml-auto btn-outline text-xs h-9 px-4"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Télécharger le PDF
+            </a>
+          )}
+        </div>
+
+        {!downloadUrl && doc.storage_path && (
+          <p className="text-xs text-warning">
+            PDF stocké mais URL non générable pour le moment. Réessayez plus tard.
+          </p>
+        )}
+        {!doc.storage_path && (
+          <p className="text-xs text-muted-soft italic">
+            PDF source non disponible pour ce document (analysé avant le stockage permanent).
+          </p>
+        )}
       </header>
 
       {analysis ? (
@@ -67,13 +113,10 @@ export default async function DocumentDetailPage({ params }: PageProps) {
           <p className="text-sm text-muted">
             Aucune analyse Claude disponible pour ce document.
           </p>
-          <p className="text-xs text-muted mt-1">
-            Ce document a peut-être été créé avant la fonctionnalité d&apos;analyse.
-          </p>
         </div>
       )}
 
-      {doc.raw_text && (
+      {doc.raw_text && !doc.raw_text.startsWith("[PDF scanné") && (
         <details className="rounded-xl border border-hairline bg-canvas-soft p-4">
           <summary className="cursor-pointer text-sm text-muted hover:text-ink">
             Voir le texte source du document

@@ -37,11 +37,14 @@ export default function AnalyzerClient({ familyId, history }: Props) {
     /** Base64 du PDF si le texte n'a pas pu être extrait (scan). À envoyer direct à Claude. */
     base64?: string;
   } | null>(null);
+  // Référence au File original pour uploader vers Supabase Storage après save
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
 
   async function handlePdf(file: File) {
     setError(null);
     setParsingPdf(true);
     setPdfInfo(null);
+    setPdfFile(file);
     setText("");
     const form = new FormData();
     form.append("file", file);
@@ -140,6 +143,8 @@ export default function AnalyzerClient({ familyId, history }: Props) {
     setSaving(true);
     try {
       const supabase = createClient();
+
+      // 1. Insérer la rangée document (sans storage_path encore)
       const { data: doc, error: docErr } = await supabase
         .from("medical_documents")
         .insert({
@@ -157,7 +162,27 @@ export default function AnalyzerClient({ familyId, history }: Props) {
         .single();
       if (docErr) throw docErr;
 
-      // Événement timeline lié
+      // 2. Si on a un PDF source, l'uploader dans Supabase Storage à
+      //    {family_id}/{document_id}.pdf et stocker le path
+      if (pdfFile) {
+        const path = `${familyId}/${doc.id}.pdf`;
+        const { error: upErr } = await supabase.storage
+          .from("medical-documents")
+          .upload(path, pdfFile, {
+            contentType: "application/pdf",
+            upsert: true,
+          });
+        if (upErr) {
+          console.warn("PDF upload failed (le document est sauvé sans le PDF)", upErr);
+        } else {
+          await supabase
+            .from("medical_documents")
+            .update({ storage_path: path })
+            .eq("id", doc.id);
+        }
+      }
+
+      // 3. Événement timeline lié
       await supabase.from("timeline_events").insert({
         family_id: familyId,
         event_type: mapDocTypeToEvent(result.document_type),

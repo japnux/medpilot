@@ -180,6 +180,7 @@ export interface Database {
           raw_text: string | null;
           analysis_summary: Json | null;
           doctor_name: string | null;
+          storage_path: string | null;
           uploaded_by: string | null;
           created_at: string;
         };
@@ -192,6 +193,7 @@ export interface Database {
           raw_text?: string | null;
           analysis_summary?: Json | null;
           doctor_name?: string | null;
+          storage_path?: string | null;
           uploaded_by?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["medical_documents"]["Insert"]>;
