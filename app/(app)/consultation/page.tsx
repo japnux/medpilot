@@ -4,6 +4,12 @@ import ConsultationClient from "@/components/consultation/ConsultationClient";
 
 export const dynamic = "force-dynamic";
 
+interface CareTeamMember {
+  name?: string;
+  specialty?: string;
+  hospital?: string;
+}
+
 export default async function ConsultationPage() {
   const supabase = await createClient();
   const {
@@ -20,19 +26,29 @@ export default async function ConsultationPage() {
   if (!membership) redirect("/onboarding");
 
   const today = new Date().toISOString().slice(0, 10);
-  const { data: upcoming } = await supabase
-    .from("consultations")
-    .select("id, consultation_date, doctor_name, consultation_type, hospital, status")
-    .eq("family_id", membership.family_id)
-    .eq("status", "upcoming")
-    .gte("consultation_date", today)
-    .order("consultation_date", { ascending: true })
-    .limit(20);
+  const [{ data: upcoming }, { data: profile }] = await Promise.all([
+    supabase
+      .from("consultations")
+      .select("id, consultation_date, doctor_name, consultation_type, hospital, status")
+      .eq("family_id", membership.family_id)
+      .eq("status", "upcoming")
+      .gte("consultation_date", today)
+      .order("consultation_date", { ascending: true })
+      .limit(20),
+    supabase
+      .from("cancer_profiles")
+      .select("care_team")
+      .eq("family_id", membership.family_id)
+      .maybeSingle(),
+  ]);
+
+  const careTeam = (profile?.care_team as unknown as CareTeamMember[]) ?? [];
 
   return (
     <ConsultationClient
       familyId={membership.family_id}
       upcoming={upcoming ?? []}
+      careTeam={careTeam}
     />
   );
 }

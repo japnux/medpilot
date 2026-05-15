@@ -21,6 +21,12 @@ const CONSULT_TYPES = [
 
 type ConsultType = (typeof CONSULT_TYPES)[number][0];
 
+interface CareTeamMember {
+  name?: string;
+  specialty?: string;
+  hospital?: string;
+}
+
 interface Props {
   familyId: string;
   upcoming: Array<{
@@ -31,9 +37,10 @@ interface Props {
     hospital: string | null;
     status: string;
   }>;
+  careTeam: CareTeamMember[];
 }
 
-export default function ConsultationClient({ familyId, upcoming }: Props) {
+export default function ConsultationClient({ familyId, upcoming, careTeam }: Props) {
   const router = useRouter();
   const [date, setDate] = useState(today());
   const [type, setType] = useState<ConsultType>("oncologie");
@@ -41,11 +48,44 @@ export default function ConsultationClient({ familyId, upcoming }: Props) {
   const [hospital, setHospital] = useState("");
   const [openPoints, setOpenPoints] = useState("");
   const [treatmentContext, setTreatmentContext] = useState("");
+  // Liste locale (peut être enrichie par "Ajouter à l'équipe")
+  const [knownDoctors, setKnownDoctors] = useState<CareTeamMember[]>(careTeam);
 
   const [preparing, setPreparing] = useState(false);
   const [prep, setPrep] = useState<ConsultationPrepResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Quand on sélectionne un médecin depuis la liste, pré-remplit aussi
+  // l'hôpital si connu
+  function selectKnownDoctor(name: string) {
+    setDoctor(name);
+    const match = knownDoctors.find((d) => d.name === name);
+    if (match?.hospital && !hospital) setHospital(match.hospital);
+  }
+
+  // Ajoute le médecin courant à care_team du profil cancer (persistant)
+  async function addToCareTeam() {
+    if (!doctor.trim()) return;
+    const newMember: CareTeamMember = {
+      name: doctor.trim(),
+      hospital: hospital.trim() || undefined,
+      specialty: type,
+    };
+    // Évite les doublons par nom
+    if (knownDoctors.some((d) => d.name === newMember.name)) return;
+    const next = [...knownDoctors, newMember];
+    setKnownDoctors(next);
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("cancer_profiles")
+        .update({ care_team: JSON.parse(JSON.stringify(next)) })
+        .eq("family_id", familyId);
+    } catch (e) {
+      console.warn("Ajout care_team échoué", e);
+    }
+  }
 
   async function prepare() {
     setPreparing(true);
@@ -57,6 +97,9 @@ export default function ConsultationClient({ familyId, upcoming }: Props) {
         body: JSON.stringify({
           family_id: familyId,
           consultation_type: type,
+          consultation_date: date,
+          doctor_name: doctor || undefined,
+          hospital: hospital || undefined,
           open_points: openPoints,
           treatment_context: treatmentContext,
         }),
@@ -94,7 +137,7 @@ export default function ConsultationClient({ familyId, upcoming }: Props) {
         family_id: familyId,
         event_type: "consultation",
         event_date: date,
-        title: `${type}${doctor ? ` — Dr ${doctor}` : ""}`,
+        title: `${labelForType(type)}${doctor ? ` — ${doctor}` : ""}`,
         summary: prep.consultation_summary,
         linked_consultation_id: c.id,
       });
@@ -147,15 +190,47 @@ export default function ConsultationClient({ familyId, upcoming }: Props) {
             </label>
           </div>
 
-          <label className="text-xs space-y-1 block">
-            <span className="text-muted">Médecin</span>
+          <div className="text-xs space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-muted">Médecin</span>
+              {doctor.trim() &&
+                !knownDoctors.some((d) => d.name === doctor.trim()) && (
+                  <button
+                    type="button"
+                    onClick={addToCareTeam}
+                    className="text-[11px] text-primary hover:text-primary-deep"
+                  >
+                    + Ajouter à l&apos;équipe
+                  </button>
+                )}
+            </div>
             <input
               value={doctor}
               onChange={(e) => setDoctor(e.target.value)}
-              placeholder="ex : Dr Dupont"
+              onBlur={(e) => {
+                // Auto-fill hôpital si on a sélectionné un médecin connu
+                const match = knownDoctors.find((d) => d.name === e.target.value);
+                if (match?.hospital && !hospital) setHospital(match.hospital);
+              }}
+              list="known-doctors"
+              placeholder="Choisir ou saisir (ex : Dr Grunenwald)"
               className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
             />
-          </label>
+            <datalist id="known-doctors">
+              {knownDoctors.map((d, i) => (
+                <option
+                  key={i}
+                  value={d.name ?? ""}
+                  label={[d.specialty, d.hospital].filter(Boolean).join(" · ")}
+                />
+              ))}
+            </datalist>
+            {knownDoctors.length > 0 && (
+              <p className="text-[10px] text-muted-soft">
+                {knownDoctors.length} médecin{knownDoctors.length > 1 ? "s" : ""} dans l&apos;équipe
+              </p>
+            )}
+          </div>
 
           <label className="text-xs space-y-1 block">
             <span className="text-muted">Hôpital / centre</span>
@@ -295,6 +370,11 @@ export default function ConsultationClient({ familyId, upcoming }: Props) {
       </div>
     </div>
   );
+}
+
+function labelForType(t: string): string {
+  const match = CONSULT_TYPES.find(([v]) => v === t);
+  return match ? match[1] : t;
 }
 
 function Section({ title, items }: { title: string; items: string[] }) {

@@ -1,12 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/browser";
 import { formatDateFr } from "@/lib/dates";
-import { EVENT_TYPES, getEventMeta } from "@/lib/timeline-events";
-import type { EventType } from "@/types/database";
-import { Clock, AlertCircle } from "lucide-react";
+import { getEventMeta } from "@/lib/timeline-events";
+import { AlertCircle } from "lucide-react";
 
 interface TimelineEvent {
   id: string;
@@ -19,33 +16,17 @@ interface TimelineEvent {
   linked_consultation_id: string | null;
 }
 
-interface SurveillanceSlot {
-  id: string;
-  alert_type: string;
-  label: string;
-  due_date: string;
-  is_done: boolean | null;
-}
-
 interface Props {
   familyId: string;
   events: TimelineEvent[];
-  surveillance: SurveillanceSlot[];
 }
 
 /**
  * Timeline unifiée : axe chronologique vertical, du plus récent au plus ancien.
- * - En tête : les 5 prochaines surveillances planifiées
- * - Puis : tous les événements (chirurgie, consultations, documents, biologie)
- *   avec dots colorés par type et clic vers la fiche détail.
+ * Tous les événements (chirurgie, consultations, documents, biologie) avec dots
+ * colorés par type et clic vers la fiche détail.
  */
-export default function TimelineClient({
-  familyId,
-  events,
-  surveillance,
-}: Props) {
-  const router = useRouter();
-
+export default function TimelineClient({ events }: Props) {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-8">
       <header>
@@ -55,26 +36,6 @@ export default function TimelineClient({
         </p>
       </header>
 
-      {/* ====== Prochaines surveillances ====== */}
-      {surveillance.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-medium text-ink">
-            Prochaines surveillances
-          </h2>
-          <ul className="space-y-2">
-            {surveillance.map((s) => (
-              <SurveillanceCard
-                key={s.id}
-                slot={s}
-                familyId={familyId}
-                onUpdate={() => router.refresh()}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ====== Timeline chronologique ====== */}
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-ink border-b border-hairline pb-2">
           Historique du parcours
@@ -160,75 +121,5 @@ function EventItem({ event }: { event: TimelineEvent }) {
       </div>
       {href ? <Link href={href}>{card}</Link> : card}
     </article>
-  );
-}
-
-function SurveillanceCard({
-  slot,
-  familyId,
-  onUpdate,
-}: {
-  slot: SurveillanceSlot;
-  familyId: string;
-  onUpdate: () => void;
-}) {
-  const dueIn = Math.ceil(
-    (new Date(slot.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-  );
-  const overdue = dueIn < 0;
-  const soon = dueIn >= 0 && dueIn <= 14;
-  const color = overdue ? "#ef4444" : soon ? "#f59e0b" : "#64748b";
-
-  async function markDone() {
-    const supabase = createClient();
-    await supabase
-      .from("surveillance_alerts")
-      .update({ is_done: true })
-      .eq("id", slot.id);
-    await supabase.from("timeline_events").insert({
-      family_id: familyId,
-      event_type: "other",
-      event_date: new Date().toISOString().slice(0, 10),
-      title: slot.label,
-      summary: "Surveillance planifiée — réalisée",
-    });
-    onUpdate();
-  }
-
-  return (
-    <li className="rounded-lg border border-dashed border-hairline bg-canvas-soft p-4">
-      <div className="flex items-start gap-3">
-        <Clock className="w-4 h-4 shrink-0 mt-0.5" style={{ color }} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-sm font-medium text-body-strong">
-              {formatDateFr(slot.due_date)}
-            </span>
-            <span
-              className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded"
-              style={{
-                color,
-                backgroundColor: `${color}1a`,
-                border: `1px solid ${color}40`,
-              }}
-            >
-              {overdue
-                ? `En retard ${Math.abs(dueIn)}j`
-                : soon
-                  ? `Dans ${dueIn}j`
-                  : `Dans ${dueIn}j`}
-            </span>
-            <span className="text-xs text-muted">à planifier</span>
-          </div>
-          <p className="text-sm text-body mt-0.5">{slot.label}</p>
-        </div>
-        <button
-          onClick={markDone}
-          className="text-xs text-success hover:text-success px-2 py-1 rounded border border-success/30 shrink-0"
-        >
-          Fait
-        </button>
-      </div>
-    </li>
   );
 }

@@ -142,12 +142,40 @@ Tu produis UNIQUEMENT ce JSON (pas de texte avant ou après) :
 // -------------------------------------------------------------------
 // Module 3 — Préparation de consultation (Haiku 4.5)
 // -------------------------------------------------------------------
-export const CONSULTATION_PREP_PROMPT = `Tu prépares une consultation médicale pour l'accompagnant d'un patient atteint de {{cancer_label}}, {{stage}}, en traitement depuis {{treatment_context}}.
+export const CONSULTATION_PREP_PROMPT = `Tu prépares une consultation médicale pour l'accompagnant d'un patient atteint de {{cancer_label}}, stade {{stage}}.
 
-Points en suspens connus : {{open_points}}
-Derniers événements notables : {{recent_events}}
+# Profil patient
+- Diagnostic : {{diagnosis_date}}
+- Chirurgie : {{surgery_date}} ({{surgery_result}})
+- Traitements actifs (aujourd'hui) : {{active_treatments}}
+- Biomarqueurs clés au diagnostic : {{key_biomarkers}}
+- Réseau de référence : {{reference_network}}
 
-Réponds UNIQUEMENT en JSON :
+# Consultation à préparer
+- Type de consultation : {{consultation_type}}
+- Médecin : {{doctor_name}}
+- Hôpital : {{hospital}}
+- Date prévue : {{consultation_date}}
+- Contexte traitement libre : {{treatment_context}}
+- Points en suspens à aborder : {{open_points}}
+
+# Derniers événements du parcours
+{{recent_events}}
+
+# Derniers documents analysés
+{{recent_documents}}
+
+# Bilan biologique récent (valeurs préoccupantes uniquement)
+{{biology_alerts}}
+
+# Équipe médicale connue du patient
+{{care_team}}
+
+# Mission
+
+Génère une préparation de RDV utile pour l'accompagnant. Questions précises et directes, classées par thème et priorité. Cite uniquement des médicaments si explicitement présents dans le contexte. Compte tenu du type de consultation ({{consultation_type}}) et du médecin ({{doctor_name}}), priorise les questions qui relèvent de SA spécialité.
+
+Réponds UNIQUEMENT en JSON (sans markdown fence, sans préambule, sans texte après le } final) :
 {
   "consultation_summary": "une phrase résumant l'enjeu de cette consultation",
   "questions": [
