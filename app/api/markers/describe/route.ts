@@ -12,6 +12,8 @@ export const maxDuration = 30;
 const Schema = z.object({
   marker_name: z.string().min(1),
   marker_label: z.string().min(1),
+  /** Force la régénération même si une description est déjà en cache. */
+  force: z.boolean().optional(),
 });
 
 /**
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Données invalides" }, { status: 400 });
   }
-  const { marker_name, marker_label } = parsed.data;
+  const { marker_name, marker_label, force } = parsed.data;
 
   const { data: membership } = await supabase
     .from("family_members")
@@ -45,10 +47,10 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
   if (!membership) return NextResponse.json({ error: "Pas de famille" }, { status: 403 });
 
-  // Profil + custom_markers actuel
+  // Profil + custom_markers actuel + contexte cancer pour contextualiser la description
   const { data: profile } = await supabase
     .from("cancer_profiles")
-    .select("id, custom_markers")
+    .select("id, custom_markers, cancer_label, patient_first_name")
     .eq("family_id", membership.family_id)
     .maybeSingle();
   if (!profile) return NextResponse.json({ error: "Profil introuvable" }, { status: 404 });
@@ -57,8 +59,8 @@ export async function POST(request: NextRequest) {
     (profile.custom_markers as unknown as Record<string, MarkerDef>) ?? {};
   const existing = customMarkers[marker_name];
 
-  // Déjà décrit ? retour direct
-  if (existing?.description && existing.description.trim().length > 10) {
+  // Déjà décrit ? retour direct (sauf si force=true)
+  if (!force && existing?.description && existing.description.trim().length > 10) {
     await logApiUsage({
       endpoint: "markers/describe",
       model: "claude-haiku-4-5-20251001",
@@ -77,15 +79,22 @@ export async function POST(request: NextRequest) {
   const anthropic = new Anthropic({ apiKey });
 
   const t0 = Date.now();
+  const cancerLabel = profile.cancer_label ?? "cancer";
   const response = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 200,
-    system:
-      "Tu es un assistant médical. Tu décris brièvement un marqueur biologique pour un proche non-médecin : ce qu'il mesure, à quoi il sert en clinique. Réponds en 1 à 2 phrases (max 250 caractères), ton neutre et factuel, en français. Pas de préambule ni de markdown.",
+    max_tokens: 250,
+    system: `Tu es un assistant médical en oncologie. Tu décris brièvement un marqueur biologique pour un proche non-médecin qui accompagne un patient atteint de ${cancerLabel}.
+
+Règles :
+- Mentionne d'abord à quoi sert ce marqueur DANS CE CONTEXTE ONCOLOGIQUE (surveillance tumorale, effet d'un traitement, fonction d'un organe…).
+- Si le marqueur a d'autres usages dominants en médecine générale (ex: β-HCG = grossesse), ne les évoque PAS sauf si pertinent ici.
+- Ne suppose pas le sexe du patient sauf si le contexte le rend évident (ex: PSA = homme, marqueurs ovariens = femme).
+- Réponds en 1 à 2 phrases (max 300 caractères), ton neutre et factuel, en français.
+- Pas de préambule ni de markdown.`,
     messages: [
       {
         role: "user",
-        content: `Décris le marqueur biologique : ${marker_label}`,
+        content: `Décris le marqueur biologique "${marker_label}" pour un accompagnant de patient atteint de ${cancerLabel}.`,
       },
     ],
   });
