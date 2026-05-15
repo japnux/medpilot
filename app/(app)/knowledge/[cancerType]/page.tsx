@@ -45,27 +45,45 @@ export default async function KnowledgePage({ params }: PageProps) {
     );
   }
 
+  // Helper : Claude peut parfois retourner un objet là où on attend un array
+  // (sous-catégorisation libre). On aplatit en array dans ce cas.
+  function asArray<T>(v: unknown): T[] {
+    if (Array.isArray(v)) return v as T[];
+    if (v && typeof v === "object") {
+      const out: T[] = [];
+      for (const val of Object.values(v as Record<string, unknown>)) {
+        if (Array.isArray(val)) out.push(...(val as T[]));
+        else if (val && typeof val === "object") out.push(val as T);
+      }
+      return out;
+    }
+    return [];
+  }
+
   const data: CancerKnowledge = {
     overview: (kb.overview as CancerKnowledge["overview"]) ?? {},
-    expert_network: (kb.expert_network as CancerKnowledge["expert_network"]) ?? [],
+    expert_network: asArray<CancerKnowledge["expert_network"][number]>(kb.expert_network),
     staging_classification:
       (kb.staging_classification as CancerKnowledge["staging_classification"]) ?? {},
-    biomarkers: (kb.biomarkers as CancerKnowledge["biomarkers"]) ?? [],
-    standard_protocols: (kb.standard_protocols as CancerKnowledge["standard_protocols"]) ?? [],
-    clinical_trials_landscape:
-      (kb.clinical_trials_landscape as CancerKnowledge["clinical_trials_landscape"]) ?? [],
+    biomarkers: asArray<CancerKnowledge["biomarkers"][number]>(kb.biomarkers),
+    standard_protocols: asArray<CancerKnowledge["standard_protocols"][number]>(kb.standard_protocols),
+    clinical_trials_landscape: asArray<CancerKnowledge["clinical_trials_landscape"][number]>(
+      kb.clinical_trials_landscape,
+    ),
     surveillance_recommendations:
       (kb.surveillance_recommendations as CancerKnowledge["surveillance_recommendations"]) ?? {},
-    side_effects_to_monitor:
-      (kb.side_effects_to_monitor as CancerKnowledge["side_effects_to_monitor"]) ?? [],
-    red_flags: (kb.red_flags as CancerKnowledge["red_flags"]) ?? [],
+    side_effects_to_monitor: asArray<CancerKnowledge["side_effects_to_monitor"][number]>(
+      kb.side_effects_to_monitor,
+    ),
+    red_flags: asArray<CancerKnowledge["red_flags"][number]>(kb.red_flags),
     genetic_considerations:
       (kb.genetic_considerations as CancerKnowledge["genetic_considerations"]) ?? {},
-    patient_resources: (kb.patient_resources as CancerKnowledge["patient_resources"]) ?? [],
-    key_questions_for_team:
-      (kb.key_questions_for_team as CancerKnowledge["key_questions_for_team"]) ?? [],
-    recent_updates: (kb.recent_updates as CancerKnowledge["recent_updates"]) ?? [],
-    sources: (kb.sources as CancerKnowledge["sources"]) ?? [],
+    patient_resources: asArray<CancerKnowledge["patient_resources"][number]>(kb.patient_resources),
+    key_questions_for_team: asArray<CancerKnowledge["key_questions_for_team"][number]>(
+      kb.key_questions_for_team,
+    ),
+    recent_updates: asArray<CancerKnowledge["recent_updates"][number]>(kb.recent_updates),
+    sources: asArray<CancerKnowledge["sources"][number]>(kb.sources),
   };
 
   return (
