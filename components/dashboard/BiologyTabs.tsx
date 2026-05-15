@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Sparkles, Activity, History } from "lucide-react";
 import type { MarkerDef } from "@/lib/cancer-profiles";
 import BiologyTrendsCard from "./BiologyTrendsCard";
@@ -41,8 +42,29 @@ const TABS: Array<{ key: Tab; label: string; icon: typeof Sparkles }> = [
   { key: "history", label: "Historique", icon: History },
 ];
 
+function isValidTab(v: string | null): v is Tab {
+  return v === "trends" || v === "markers" || v === "history";
+}
+
 export default function BiologyTabs({ familyId, markers, byMarker, bilans }: Props) {
-  const [tab, setTab] = useState<Tab>("trends");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const [tab, setTab] = useState<Tab>(isValidTab(urlTab) ? urlTab : "trends");
+
+  // Sync URL → state quand on clique un sous-menu sidebar
+  useEffect(() => {
+    if (isValidTab(urlTab) && urlTab !== tab) setTab(urlTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlTab]);
+
+  function selectTab(t: Tab) {
+    setTab(t);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", t);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   return (
     <div className="space-y-4">
@@ -55,7 +77,7 @@ export default function BiologyTabs({ familyId, markers, byMarker, bilans }: Pro
             <button
               key={t.key}
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={() => selectTab(t.key)}
               className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 transition-colors -mb-px ${
                 active
                   ? "border-primary text-ink"

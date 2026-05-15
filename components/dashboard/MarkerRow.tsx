@@ -42,7 +42,7 @@ export default function MarkerRow({ markerKey, marker, records }: Props) {
         {marker.label}
       </span>
 
-      {/* Mini-sparkline (vide si trop peu de mesures) */}
+      {/* Mini-sparkline */}
       <div className="flex-1 flex justify-center">
         <CompactSparkline marker={marker} values={sparklineValues} status={status} />
       </div>
@@ -81,69 +81,134 @@ function CompactSparkline({
   values: number[];
   status: string | null;
 }) {
-  if (values.length < 2) {
-    return <div style={{ width: 100, height: 22 }} />;
+  const width = 140;
+  const height = 32;
+  const padX = 4;
+  const padY = 4;
+  const w = width - padX * 2;
+  const h = height - padY * 2;
+
+  if (values.length === 0) {
+    return <div style={{ width, height }} />;
   }
-  const width = 100;
-  const height = 22;
+
   const targetMin = marker.target_min ?? null;
   const targetMax = marker.target_max ?? null;
+  // Inclure les bornes target dans l'échelle pour bien situer la zone
   const visualMin = Math.min(...values, targetMin ?? Infinity);
   const visualMax = Math.max(...values, targetMax ?? -Infinity);
-  const range = visualMax - visualMin || 1;
-  const step = width / (values.length - 1);
-  const points = values
-    .map((v, i) => `${i * step},${height - ((v - visualMin) / range) * (height - 4) - 2}`)
-    .join(" ");
+  let range = visualMax - visualMin;
+  if (range <= 0) range = Math.max(1, Math.abs(visualMin) * 0.1);
 
-  const lineColor =
-    status === "critical"
-      ? "var(--error)"
-      : status === "warning"
-        ? "var(--warning)"
-        : "var(--success)";
+  // 1 seule mesure : on affiche juste le rect target + le point sur la ligne
+  if (values.length === 1) {
+    const cx = padX + w / 2;
+    const cy = padY + h - ((values[0] - visualMin) / range) * h;
+    return (
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block">
+        <TargetRect
+          padX={padX}
+          padY={padY}
+          w={w}
+          h={h}
+          visualMin={visualMin}
+          range={range}
+          targetMin={targetMin}
+          targetMax={targetMax}
+        />
+        <circle cx={cx} cy={cy} r={3} fill={pointColor(status)} />
+      </svg>
+    );
+  }
 
-  // Rect cible (vert subtil) si target_min ET target_max
-  const targetRect =
-    targetMin != null && targetMax != null
-      ? {
-          y: height - ((targetMax - visualMin) / range) * (height - 4) - 2,
-          h: ((targetMax - targetMin) / range) * (height - 4),
-        }
-      : null;
+  // Plusieurs mesures : ligne + points
+  const step = w / (values.length - 1);
+  const coords = values.map((v, i) => ({
+    x: padX + i * step,
+    y: padY + h - ((v - visualMin) / range) * h,
+  }));
+  const linePath = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x},${c.y}`).join(" ");
+  const lineColor = pointColor(status);
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-      {targetRect && (
-        <rect
-          x={0}
-          y={targetRect.y}
-          width={width}
-          height={Math.max(2, targetRect.h)}
-          fill="var(--success)"
-          opacity={0.08}
-        />
-      )}
-      <polyline
-        points={points}
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block">
+      <TargetRect
+        padX={padX}
+        padY={padY}
+        w={w}
+        h={h}
+        visualMin={visualMin}
+        range={range}
+        targetMin={targetMin}
+        targetMax={targetMax}
+      />
+      {/* Ligne entre points */}
+      <path
+        d={linePath}
         fill="none"
         stroke={lineColor}
         strokeWidth={1.5}
         strokeLinejoin="round"
         strokeLinecap="round"
       />
+      {/* Points intermédiaires (petits) */}
+      {coords.slice(0, -1).map((c, i) => (
+        <circle key={i} cx={c.x} cy={c.y} r={1.5} fill={lineColor} opacity={0.7} />
+      ))}
+      {/* Dernier point (plus gros, mis en évidence) */}
       <circle
-        cx={(values.length - 1) * step}
-        cy={
-          height -
-          ((values[values.length - 1] - visualMin) / range) * (height - 4) -
-          2
-        }
-        r={2}
+        cx={coords[coords.length - 1].x}
+        cy={coords[coords.length - 1].y}
+        r={2.75}
         fill={lineColor}
       />
     </svg>
   );
+}
+
+function TargetRect({
+  padX,
+  padY,
+  w,
+  h,
+  visualMin,
+  range,
+  targetMin,
+  targetMax,
+}: {
+  padX: number;
+  padY: number;
+  w: number;
+  h: number;
+  visualMin: number;
+  range: number;
+  targetMin: number | null;
+  targetMax: number | null;
+}) {
+  if (targetMin == null && targetMax == null) return null;
+  const tMin = targetMin ?? visualMin;
+  const tMax = targetMax ?? visualMin + range;
+  const y1 = padY + h - ((tMax - visualMin) / range) * h;
+  const y2 = padY + h - ((tMin - visualMin) / range) * h;
+  const rectH = Math.max(2, y2 - y1);
+  return (
+    <rect
+      x={padX}
+      y={y1}
+      width={w}
+      height={rectH}
+      fill="var(--success)"
+      opacity={0.12}
+      rx={2}
+    />
+  );
+}
+
+function pointColor(status: string | null): string {
+  if (status === "critical") return "var(--error)";
+  if (status === "warning") return "var(--warning)";
+  if (status === "normal") return "var(--success)";
+  return "var(--muted-soft)";
 }
 
 function formatValue(n: number): string {

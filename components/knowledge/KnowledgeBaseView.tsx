@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   AlertOctagon,
   AlertTriangle,
   Info,
   ChevronDown,
   ChevronRight,
-  BookOpen,
   Users,
   Layers,
   Microscope,
@@ -22,7 +21,9 @@ import {
   ExternalLink,
   RefreshCw,
   Sparkles,
+  X,
 } from "lucide-react";
+import { KNOWLEDGE_TABS, type TabId } from "@/lib/knowledge-sections";
 
 /**
  * Lien externe protégé : ne rend rien si url manquante / vide / # / not http(s).
@@ -82,8 +83,33 @@ export default function KnowledgeBaseView({
   data,
 }: KbProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Tab actif via URL
+  const tabParam = searchParams.get("tab") as TabId | null;
+  const validTabIds = KNOWLEDGE_TABS.map((t) => t.id);
+  const activeTab: TabId =
+    tabParam && validTabIds.includes(tabParam) ? tabParam : "essentiel";
+
+  function selectTab(t: TabId) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", t);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  // Esc ferme le drawer
+  useEffect(() => {
+    if (!drawerOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setDrawerOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerOpen]);
 
   async function regenerate() {
     setRegenerating(true);
@@ -161,119 +187,314 @@ export default function KnowledgeBaseView({
   const redFlags = data.red_flags ?? [];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-5xl mx-auto space-y-5">
       <header className="flex items-start justify-between gap-4 flex-wrap">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary" />
-            <span className="badge-pill">Fiche cancer</span>
-          </div>
+          <span className="badge-pill">🦀 Cancer</span>
           <h1 className="text-ink">{cancerTypeLabel}</h1>
           <p className="text-xs text-muted">
             Version {version} · Générée le {formatDateFr(generatedAt)}
             {status === "stale" && " · ⚠️ À actualiser"}
           </p>
         </div>
-        <button
-          onClick={regenerate}
-          disabled={regenerating}
-          className="btn-outline disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${regenerating ? "animate-spin" : ""}`} />
-          {regenerating ? "Régénération..." : "Régénérer"}
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          {redFlags.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-full text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: "color-mix(in srgb, var(--error) 10%, transparent)",
+                color: "var(--error)",
+                border: "1px solid color-mix(in srgb, var(--error) 35%, transparent)",
+              }}
+            >
+              <AlertOctagon className="w-4 h-4" />
+              {redFlags.length} signe{redFlags.length > 1 ? "s" : ""} d&apos;alerte
+            </button>
+          )}
+          <button
+            onClick={regenerate}
+            disabled={regenerating}
+            className="btn-outline disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${regenerating ? "animate-spin" : ""}`} />
+            {regenerating ? "Régénération..." : "Régénérer"}
+          </button>
+        </div>
       </header>
 
       {error && <p className="text-sm text-error">{error}</p>}
 
-      {/* Red flags : mise en avant prioritaire */}
-      {redFlags.length > 0 && (
-        <article className="rounded-xl border border-error/40 bg-error/5 p-5 space-y-3">
-          <header className="flex items-center gap-2">
-            <AlertOctagon className="w-5 h-5 text-error" />
-            <h2 className="text-base font-medium text-ink">
-              Signes d&apos;alerte — appeler le 15 ou l&apos;équipe d&apos;astreinte
-            </h2>
-          </header>
-          <ul className="space-y-2">
-            {redFlags.map((rf, i) => (
-              <li
-                key={i}
-                className="rounded-md border border-error/20 bg-canvas p-3 flex gap-3"
-              >
-                <SeverityIcon severity={rf.severity} />
-                <div className="flex-1 min-w-0 space-y-1">
-                  <p className="text-sm font-medium text-ink">{rf.symptom_or_sign}</p>
-                  {rf.context && (
-                    <p className="text-xs text-muted italic">Contexte : {rf.context}</p>
-                  )}
-                  {rf.action && (
-                    <p className="text-xs text-ink">
-                      <span className="font-medium">À faire :</span> {rf.action}
-                    </p>
-                  )}
-                  {rf.rationale && (
-                    <p className="text-[11px] text-muted">{rf.rationale}</p>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </article>
-      )}
+      {/* Tabs nav */}
+      <nav className="flex gap-1 border-b border-hairline overflow-x-auto">
+        {KNOWLEDGE_TABS.map((t) => {
+          const active = t.id === activeTab;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => selectTab(t.id)}
+              className={`shrink-0 inline-flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 transition-colors -mb-px ${
+                active
+                  ? "border-primary text-ink"
+                  : "border-transparent text-muted hover:text-ink"
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </nav>
 
-      {/* Overview */}
-      <Section icon={Info} title="Vue d'ensemble" defaultOpen>
-        <OverviewBlock overview={data.overview} />
-      </Section>
-
-      <Section icon={Layers} title="Stadification & classification">
-        <StagingBlock staging={data.staging_classification} />
-      </Section>
-
-      <Section icon={Microscope} title="Biomarqueurs">
-        <BiomarkersBlock biomarkers={data.biomarkers ?? []} />
-      </Section>
-
-      <Section icon={Pill} title="Protocoles standards">
-        <ProtocolsBlock protocols={data.standard_protocols ?? []} />
-      </Section>
-
-      <Section icon={FlaskConical} title="Paysage des essais cliniques">
-        <TrialsBlock trials={data.clinical_trials_landscape ?? []} />
-      </Section>
-
-      <Section icon={CalendarCheck} title="Surveillance recommandée">
-        <SurveillanceBlock surv={data.surveillance_recommendations} />
-      </Section>
-
-      <Section icon={Activity} title="Effets indésirables à surveiller">
-        <SideEffectsBlock effects={data.side_effects_to_monitor ?? []} />
-      </Section>
-
-      <Section icon={Dna} title="Considérations génétiques">
-        <GeneticsBlock genetics={data.genetic_considerations} />
-      </Section>
-
-      <Section icon={Users} title="Réseau d'experts">
-        <ExpertNetworkBlock network={data.expert_network ?? []} />
-      </Section>
-
-      <Section icon={Heart} title="Ressources patient">
-        <ResourcesBlock resources={data.patient_resources ?? []} />
-      </Section>
-
-      <Section icon={HelpCircle} title="Questions clés à poser à l'équipe">
-        <QuestionsBlock questions={data.key_questions_for_team ?? []} />
-      </Section>
+      {/* Sections du tab actif */}
+      <div className="space-y-4">
+        {KNOWLEDGE_TABS.find((t) => t.id === activeTab)?.sections.map((sec, idx) => (
+          <SectionRenderer
+            key={sec}
+            sectionId={sec}
+            data={data}
+            defaultOpen={idx === 0}
+          />
+        ))}
+      </div>
 
       <p className="text-xs text-muted-soft text-center pt-4 max-w-2xl mx-auto">
         Cette fiche est un référentiel généré par Claude Opus 4.7 avec recherche
         web. À valider par l&apos;équipe médicale. MedPilot ne fournit pas
         d&apos;avis médical.
       </p>
+
+      {/* Drawer Red Flags */}
+      {drawerOpen && (
+        <RedFlagsDrawer
+          redFlags={redFlags}
+          onClose={() => setDrawerOpen(false)}
+        />
+      )}
     </div>
   );
+}
+
+// ===================== Section renderer (mapping sec → block) =====================
+
+function SectionRenderer({
+  sectionId,
+  data,
+  defaultOpen,
+}: {
+  sectionId: string;
+  data: CancerKnowledge;
+  defaultOpen: boolean;
+}) {
+  switch (sectionId) {
+    case "overview":
+      return (
+        <Section icon={Info} title="Vue d'ensemble" defaultOpen={defaultOpen}>
+          <OverviewBlock overview={data.overview} />
+        </Section>
+      );
+    case "expert_network":
+      return (
+        <Section
+          icon={Users}
+          title="Réseau d'experts"
+          count={data.expert_network?.length}
+          defaultOpen={defaultOpen}
+        >
+          <ExpertNetworkBlock network={data.expert_network ?? []} />
+        </Section>
+      );
+    case "key_questions_for_team":
+      return (
+        <Section
+          icon={HelpCircle}
+          title="Questions clés à poser à l'équipe"
+          count={data.key_questions_for_team?.length}
+          defaultOpen={defaultOpen}
+        >
+          <QuestionsBlock questions={data.key_questions_for_team ?? []} />
+        </Section>
+      );
+    case "staging_classification":
+      return (
+        <Section icon={Layers} title="Stadification & classification" defaultOpen={defaultOpen}>
+          <StagingBlock staging={data.staging_classification} />
+        </Section>
+      );
+    case "biomarkers":
+      return (
+        <Section
+          icon={Microscope}
+          title="Biomarqueurs"
+          count={data.biomarkers?.length}
+          defaultOpen={defaultOpen}
+        >
+          <BiomarkersBlock biomarkers={data.biomarkers ?? []} />
+        </Section>
+      );
+    case "standard_protocols":
+      return (
+        <Section
+          icon={Pill}
+          title="Protocoles standards"
+          count={data.standard_protocols?.length}
+          defaultOpen={defaultOpen}
+        >
+          <ProtocolsBlock protocols={data.standard_protocols ?? []} />
+        </Section>
+      );
+    case "side_effects_to_monitor":
+      return (
+        <Section
+          icon={Activity}
+          title="Effets indésirables à surveiller"
+          count={data.side_effects_to_monitor?.length}
+          defaultOpen={defaultOpen}
+        >
+          <SideEffectsBlock effects={data.side_effects_to_monitor ?? []} />
+        </Section>
+      );
+    case "surveillance_recommendations":
+      return (
+        <Section
+          icon={CalendarCheck}
+          title="Surveillance recommandée"
+          defaultOpen={defaultOpen}
+        >
+          <SurveillanceBlock surv={data.surveillance_recommendations} />
+        </Section>
+      );
+    case "genetic_considerations":
+      return (
+        <Section icon={Dna} title="Considérations génétiques" defaultOpen={defaultOpen}>
+          <GeneticsBlock genetics={data.genetic_considerations} />
+        </Section>
+      );
+    case "clinical_trials_landscape":
+      return (
+        <Section
+          icon={FlaskConical}
+          title="Paysage des essais cliniques"
+          count={data.clinical_trials_landscape?.length}
+          defaultOpen={defaultOpen}
+        >
+          <TrialsBlock trials={data.clinical_trials_landscape ?? []} />
+        </Section>
+      );
+    case "patient_resources":
+      return (
+        <Section
+          icon={Heart}
+          title="Ressources patient"
+          count={data.patient_resources?.length}
+          defaultOpen={defaultOpen}
+        >
+          <ResourcesBlock resources={data.patient_resources ?? []} />
+        </Section>
+      );
+    default:
+      return null;
+  }
+}
+
+// ===================== Drawer Red Flags =====================
+
+function RedFlagsDrawer({
+  redFlags,
+  onClose,
+}: {
+  redFlags: CancerKnowledge["red_flags"];
+  onClose: () => void;
+}) {
+  // Tri par severity desc (vital > urgent > important > autre)
+  const order: Record<string, number> = { vital: 3, urgent: 2, important: 1 };
+  const sorted = [...redFlags].sort(
+    (a, b) => (order[b.severity ?? ""] ?? 0) - (order[a.severity ?? ""] ?? 0),
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Fermer"
+        onClick={onClose}
+        className="fixed inset-0 z-50 bg-ink/40"
+      />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Signes d'alerte"
+        className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-canvas shadow-2xl flex flex-col"
+      >
+        <header className="px-5 py-4 border-b border-hairline bg-error/5 flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <AlertOctagon className="w-5 h-5 text-error" />
+              <h2 className="text-base font-medium text-ink">Signes d&apos;alerte</h2>
+            </div>
+            <p className="text-xs text-muted mt-1">
+              Appeler le 15 (SAMU) ou l&apos;équipe d&apos;astreinte si l&apos;un
+              de ces signes apparaît.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-md hover:bg-surface-card text-muted hover:text-ink flex items-center justify-center"
+            aria-label="Fermer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </header>
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {sorted.map((rf, i) => (
+            <article
+              key={i}
+              className="rounded-lg border border-hairline bg-canvas p-3 space-y-2"
+            >
+              <header className="flex items-center gap-2">
+                <SeverityIcon severity={rf.severity} />
+                {rf.severity && (
+                  <span
+                    className="text-[10px] uppercase tracking-wider font-medium"
+                    style={{ color: severityColor(rf.severity) }}
+                  >
+                    {rf.severity}
+                  </span>
+                )}
+              </header>
+              <p className="text-sm font-medium text-ink">{rf.symptom_or_sign}</p>
+              {rf.context && (
+                <p className="text-xs text-muted">
+                  <span className="text-ink font-medium">Contexte : </span>
+                  {rf.context}
+                </p>
+              )}
+              {rf.action && (
+                <p className="text-xs text-ink">
+                  <span className="font-medium">À faire : </span>
+                  {rf.action}
+                </p>
+              )}
+              {rf.rationale && (
+                <p className="text-[11px] text-muted italic">{rf.rationale}</p>
+              )}
+            </article>
+          ))}
+        </div>
+        <footer className="px-5 py-3 border-t border-hairline bg-canvas-soft text-[11px] text-muted">
+          15 (SAMU) · 112 (Europe) · Service oncologie référent
+        </footer>
+      </aside>
+    </>
+  );
+}
+
+function severityColor(s: string): string {
+  if (s === "vital") return "var(--error)";
+  if (s === "urgent") return "var(--warning)";
+  return "var(--muted)";
 }
 
 // ===================== Composants section =====================
@@ -281,11 +502,13 @@ export default function KnowledgeBaseView({
 function Section({
   icon: Icon,
   title,
+  count,
   defaultOpen = false,
   children,
 }: {
   icon: typeof Info;
   title: string;
+  count?: number | null;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
@@ -299,6 +522,11 @@ function Section({
       >
         <Icon className="w-4 h-4 text-primary shrink-0" />
         <h2 className="text-base font-medium text-ink flex-1">{title}</h2>
+        {count != null && count > 0 && (
+          <span className="text-[11px] tabular text-muted bg-canvas-soft border border-hairline px-1.5 py-0.5 rounded">
+            {count}
+          </span>
+        )}
         {open ? (
           <ChevronDown className="w-4 h-4 text-muted shrink-0" />
         ) : (
