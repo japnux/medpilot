@@ -110,11 +110,11 @@ export default function Sidebar({ cancerType, patientName }: SidebarProps) {
 
   return (
     <>
-      {/* Bouton hamburger mobile (toujours visible en haut à gauche) */}
+      {/* Bouton hamburger mobile (toujours visible en haut à droite) */}
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        className="md:hidden fixed top-3 left-3 z-50 w-9 h-9 rounded-md bg-canvas border border-hairline flex items-center justify-center text-ink shadow-sm"
+        className="md:hidden fixed top-3 right-3 z-50 w-9 h-9 rounded-md bg-canvas border border-hairline flex items-center justify-center text-ink shadow-sm"
         aria-label="Ouvrir le menu"
       >
         <Menu className="w-4 h-4" />

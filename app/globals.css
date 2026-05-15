@@ -126,6 +126,13 @@ h1 { font-size: 48px; line-height: 1.15; letter-spacing: -0.96px; }
 h2 { font-size: 26px; line-height: 1.12; letter-spacing: -0.26px; }
 h3 { font-size: 20px; line-height: 1.4; letter-spacing: -0.2px; }
 
+/* Mobile : titres compacts (24px) */
+@media (max-width: 767px) {
+  h1 { font-size: 24px; line-height: 1.2; letter-spacing: -0.4px; }
+  h2 { font-size: 20px; line-height: 1.25; letter-spacing: -0.2px; }
+  h3 { font-size: 18px; line-height: 1.3; letter-spacing: -0.18px; }
+}
+
 /* Tabular figures pour les chiffres médicaux */
 .tabular {
   font-variant-numeric: tabular-nums;
