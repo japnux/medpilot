@@ -78,6 +78,7 @@ export default function MarkersByCategory({ markers, byMarker }: Props) {
           filtered.map(([key, marker]) => (
             <MarkerRow
               key={key}
+              markerKey={key}
               marker={marker}
               records={(byMarker[key] ?? []).map((r) => ({
                 recorded_at: r.recorded_at,

@@ -1,9 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { CANCER_PROFILES, type MarkerDef } from "@/lib/cancer-profiles";
-import MarkersByCategory from "@/components/dashboard/MarkersByCategory";
-import BiologyTrendsCard from "@/components/dashboard/BiologyTrendsCard";
-import BilansHistory from "@/components/dashboard/BilansHistory";
+import BiologyTabs from "@/components/dashboard/BiologyTabs";
 import AlertBanner from "@/components/shared/AlertBanner";
 
 export const dynamic = "force-dynamic";
@@ -149,8 +147,6 @@ export default async function BiologiePage() {
         />
       )}
 
-      {hasAnyData && <BiologyTrendsCard familyId={familyId} />}
-
       {!hasAnyData ? (
         <div className="card-feature text-center">
           <p className="text-sm text-muted">
@@ -161,10 +157,12 @@ export default async function BiologiePage() {
           </p>
         </div>
       ) : (
-        <>
-          <MarkersByCategory markers={markers} byMarker={byMarker} />
-          <BilansHistory bilans={bilans} markers={markers} />
-        </>
+        <BiologyTabs
+          familyId={familyId}
+          markers={markers}
+          byMarker={byMarker}
+          bilans={bilans}
+        />
       )}
     </div>
   );

@@ -19,7 +19,6 @@ import {
   Dna,
   Heart,
   HelpCircle,
-  Newspaper,
   ExternalLink,
   RefreshCw,
   Sparkles,
@@ -268,10 +267,6 @@ export default function KnowledgeBaseView({
         <QuestionsBlock questions={data.key_questions_for_team ?? []} />
       </Section>
 
-      <Section icon={Newspaper} title="Évolutions récentes">
-        <UpdatesBlock updates={data.recent_updates ?? []} />
-      </Section>
-
       <p className="text-xs text-muted-soft text-center pt-4 max-w-2xl mx-auto">
         Cette fiche est un référentiel généré par Claude Opus 4.7 avec recherche
         web. À valider par l&apos;équipe médicale. MedPilot ne fournit pas
@@ -298,6 +293,7 @@ function Section({
   return (
     <article className="card-feature p-0 overflow-hidden">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-3 px-5 py-4 hover:bg-canvas-soft transition-colors text-left"
       >
@@ -689,7 +685,7 @@ function ResourcesBlock({ resources }: { resources: CancerKnowledge["patient_res
 }
 
 function QuestionsBlock({ questions }: { questions: CancerKnowledge["key_questions_for_team"] }) {
-  if (questions.length === 0) return <NoteFallback />;
+  if (!questions || questions.length === 0) return <NoteFallback />;
   const stageLabels: Record<string, string> = {
     diagnosis: "Diagnostic",
     treatment_decision: "Décision thérapeutique",
@@ -697,15 +693,49 @@ function QuestionsBlock({ questions }: { questions: CancerKnowledge["key_questio
     surveillance: "Surveillance",
     recurrence: "Récidive",
   };
+
+  // Normalise vers Array<{stage?, questions: string[]}>
+  // Claude peut retourner :
+  // - Array de strings (questions plates)
+  // - Array d'objets {stage, questions: string[]}
+  // - Array d'objets {stage, question: string} (singulier)
+  const normalized: Array<{ stage?: string; items: string[] }> = [];
+  const flatStrings: string[] = [];
+
+  for (const q of questions as unknown[]) {
+    if (typeof q === "string") {
+      flatStrings.push(q);
+      continue;
+    }
+    if (q && typeof q === "object") {
+      const obj = q as { stage?: string; questions?: unknown; question?: unknown };
+      const stage = typeof obj.stage === "string" ? obj.stage : undefined;
+      let items: string[] = [];
+      if (Array.isArray(obj.questions)) {
+        items = obj.questions.filter((x): x is string => typeof x === "string");
+      } else if (typeof obj.question === "string") {
+        items = [obj.question];
+      }
+      if (items.length > 0) normalized.push({ stage, items });
+    }
+  }
+  if (flatStrings.length > 0) {
+    normalized.unshift({ stage: undefined, items: flatStrings });
+  }
+
+  if (normalized.length === 0) return <NoteFallback />;
+
   return (
     <div className="space-y-3 mt-2">
-      {questions.map((q, i) => (
+      {normalized.map((q, i) => (
         <div key={i} className="rounded border border-hairline bg-canvas p-3">
-          <p className="text-xs font-medium text-ink mb-1.5 uppercase tracking-wider">
-            {stageLabels[q.stage] ?? q.stage}
-          </p>
+          {q.stage && (
+            <p className="text-xs font-medium text-ink mb-1.5 uppercase tracking-wider">
+              {stageLabels[q.stage] ?? q.stage}
+            </p>
+          )}
           <ul className="space-y-1 pl-4 list-disc text-xs text-body">
-            {q.questions.map((qu, j) => (
+            {q.items.map((qu, j) => (
               <li key={j}>{qu}</li>
             ))}
           </ul>

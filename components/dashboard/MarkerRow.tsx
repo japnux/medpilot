@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import type { MarkerDef } from "@/lib/cancer-profiles";
 import { getMarkerStatus, getStatusColor } from "@/lib/markers";
 
 interface Props {
+  markerKey: string;
   marker: MarkerDef;
   /** Mesures triées par date desc (la plus récente en premier). */
   records: Array<{ recorded_at: string; value: number }>;
@@ -12,8 +14,9 @@ interface Props {
 /**
  * Row compacte pour un marqueur biologique (pattern Health-dashboard).
  * Layout : [dot status]  [label]  [mini-sparkline]  [valeur unité]  [plage cible]
+ * Click → /biologie/marqueur/[markerKey] pour le détail complet.
  */
-export default function MarkerRow({ marker, records }: Props) {
+export default function MarkerRow({ markerKey, marker, records }: Props) {
   const last = records[0];
   const status = last ? getMarkerStatus(last.value, marker) : null;
   const statusColor = status ? getStatusColor(status) : "var(--muted-soft)";
@@ -24,7 +27,10 @@ export default function MarkerRow({ marker, records }: Props) {
     .map((r) => r.value);
 
   return (
-    <div className="flex items-center gap-3 py-2.5 px-3 border-b border-hairline-soft last:border-b-0 hover:bg-canvas-soft transition-colors">
+    <Link
+      href={`/biologie/marqueur/${markerKey}`}
+      className="flex items-center gap-3 py-2.5 px-3 border-b border-hairline-soft last:border-b-0 hover:bg-canvas-soft transition-colors"
+    >
       {/* Dot status */}
       <span
         className="w-2 h-2 rounded-full shrink-0"
@@ -62,7 +68,7 @@ export default function MarkerRow({ marker, records }: Props) {
       <span className="text-[11px] text-muted-soft tabular hidden sm:inline min-w-[60px] text-right">
         {formatRange(marker)}
       </span>
-    </div>
+    </Link>
   );
 }
 

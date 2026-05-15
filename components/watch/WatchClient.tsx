@@ -19,6 +19,44 @@ import {
 import { formatDateFr } from "@/lib/dates";
 import type { WatchFindingResult } from "@/lib/watch-prompts";
 
+/** Lien externe protégé : ne rend rien si url invalide. */
+function SafeLink({
+  url,
+  label,
+  className,
+}: {
+  url?: string | null;
+  label?: string;
+  className?: string;
+}) {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "#" || !/^https?:\/\//i.test(trimmed)) return null;
+  return (
+    <a
+      href={trimmed}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={
+        className ??
+        "inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-deep"
+      }
+    >
+      {label ?? "Voir"}
+      <ExternalLink className="w-3 h-3" />
+    </a>
+  );
+}
+
+/** Extrait une URL d'un item Claude (peut être dans .url, .source_url, .link, .contact). */
+function pickUrl(item: Record<string, unknown>): string | null {
+  for (const key of ["url", "source_url", "link", "contact", "href"]) {
+    const v = item[key];
+    if (typeof v === "string" && /^https?:\/\//i.test(v.trim())) return v.trim();
+  }
+  return null;
+}
+
 interface Props {
   familyId: string;
   /** Dernière veille générée (peut être null si jamais générée) */
@@ -359,17 +397,7 @@ function AlertCard({ alert }: { alert: WatchFindingResult["contextual_alerts"][n
             <span className="font-medium">À faire : </span>
             {alert.recommended_action}
           </p>
-          {alert.source_url && (
-            <a
-              href={alert.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-deep"
-            >
-              Source
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
+          <SafeLink url={pickUrl(alert as unknown as Record<string, unknown>)} label="Source" />
         </div>
       </div>
     </article>
@@ -418,17 +446,7 @@ function TrialCard({ trial }: { trial: WatchFindingResult["clinical_trials"][num
       {trial.eligibility_notes && (
         <p className="text-[11px] text-muted italic">À vérifier : {trial.eligibility_notes}</p>
       )}
-      {trial.url && (
-        <a
-          href={trial.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-deep"
-        >
-          Voir la fiche
-          <ExternalLink className="w-3 h-3" />
-        </a>
-      )}
+      <SafeLink url={pickUrl(trial as unknown as Record<string, unknown>)} label="Voir la fiche" />
     </article>
   );
 }
@@ -460,17 +478,7 @@ function PublicationCard({ pub }: { pub: WatchFindingResult["publications"][numb
         <span className="font-medium">Implication : </span>
         {pub.clinical_implication}
       </p>
-      {pub.url && (
-        <a
-          href={pub.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-deep"
-        >
-          Lire
-          <ExternalLink className="w-3 h-3" />
-        </a>
-      )}
+      <SafeLink url={pickUrl(pub as unknown as Record<string, unknown>)} label="Lire" />
     </article>
   );
 }
@@ -510,17 +518,7 @@ function ExpertCenterCard({
           {center.distance_estimate_from_patient}
         </p>
       )}
-      {center.url && (
-        <a
-          href={center.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-deep"
-        >
-          Site officiel
-          <ExternalLink className="w-3 h-3" />
-        </a>
-      )}
+      <SafeLink url={pickUrl(center as unknown as Record<string, unknown>)} label="Site officiel" />
     </article>
   );
 }
@@ -530,9 +528,11 @@ function ResourceCard({
 }: {
   resource: WatchFindingResult["patient_resources"][number];
 }) {
+  const url = pickUrl(resource as unknown as Record<string, unknown>);
+  const services = (resource as unknown as { services?: string }).services;
   return (
     <article className="rounded-lg border border-hairline bg-canvas p-3 space-y-1.5">
-      <header className="flex items-center gap-2">
+      <header className="flex items-center gap-2 flex-wrap">
         <h4 className="text-sm font-medium text-ink">{resource.name}</h4>
         {resource.type && (
           <span className="text-[10px] text-muted-soft uppercase tracking-wider">
@@ -540,23 +540,14 @@ function ResourceCard({
           </span>
         )}
       </header>
-      <p className="text-xs text-body">{resource.description}</p>
+      {resource.description && <p className="text-xs text-body">{resource.description}</p>}
+      {services && <p className="text-xs text-body">{services}</p>}
       {resource.quality_signal && (
         <p className="text-[11px] text-muted">
           <span className="font-medium">Qualité :</span> {resource.quality_signal}
         </p>
       )}
-      {resource.url && (
-        <a
-          href={resource.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-deep"
-        >
-          Ouvrir
-          <ExternalLink className="w-3 h-3" />
-        </a>
-      )}
+      <SafeLink url={url} label="Ouvrir" />
     </article>
   );
 }
