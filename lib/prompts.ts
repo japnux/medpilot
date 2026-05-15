@@ -8,6 +8,7 @@
 import type { CancerProfile } from "./cancer-profiles";
 
 export interface PromptContext {
+  [key: string]: unknown;
   cancer_label: string;
   stage: string | null;
   diagnosis_date: string | null;
