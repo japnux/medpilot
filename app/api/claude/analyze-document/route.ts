@@ -75,8 +75,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Charger la knowledge base partagée du type de cancer (si disponible)
+  const { data: kb } = await supabase
+    .from("cancer_knowledge_base")
+    .select(
+      "cancer_type_label, version, generated_at, status, expert_network, staging_classification, biomarkers, standard_protocols, surveillance_recommendations, red_flags, genetic_considerations",
+    )
+    .eq("cancer_type", profile.cancer_type)
+    .maybeSingle();
+
+  const { buildKnowledgeContextBlock } = await import("@/lib/knowledge-context");
+
   const ctx = buildPromptContext(profile);
-  const system = interpolate(DOCUMENT_ANALYSIS_PROMPT, ctx);
+  const system = interpolate(DOCUMENT_ANALYSIS_PROMPT, ctx) + buildKnowledgeContextBlock(kb);
 
   // Construction du message utilisateur : texte fourni OU instruction d'analyse du PDF joint
   const userMessage = text && text.trim().length >= 20

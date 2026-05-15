@@ -59,6 +59,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Profil introuvable" }, { status: 404 });
   }
 
+  // Knowledge base partagée du type de cancer (si dispo) — utilisée pour
+  // alimenter le prompt avec red_flags, biomarqueurs, surveillance type, etc.
+  const { data: kb } = await supabase
+    .from("cancer_knowledge_base")
+    .select(
+      "cancer_type_label, version, generated_at, status, expert_network, staging_classification, biomarkers, standard_protocols, surveillance_recommendations, red_flags, genetic_considerations",
+    )
+    .eq("cancer_type", profile.cancer_type)
+    .maybeSingle();
+  const { buildKnowledgeContextBlock } = await import("@/lib/knowledge-context");
+
   // Charger les 10 derniers événements timeline pour contextualiser
   const { data: recent } = await supabase
     .from("timeline_events")
@@ -81,7 +92,7 @@ export async function POST(request: NextRequest) {
     recent_events: recentStr,
   };
 
-  const system = interpolate(CONSULTATION_PREP_PROMPT, ctx);
+  const system = interpolate(CONSULTATION_PREP_PROMPT, ctx) + buildKnowledgeContextBlock(kb);
 
   try {
     const result = await callClaudeJson<ConsultationPrepResult>({

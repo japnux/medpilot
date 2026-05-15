@@ -91,8 +91,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Enrichir le contexte avec la KB partagée (expert_network surtout)
+  const { data: kb } = await supabase
+    .from("cancer_knowledge_base")
+    .select(
+      "cancer_type_label, version, generated_at, status, expert_network, staging_classification, biomarkers, standard_protocols, surveillance_recommendations, red_flags, genetic_considerations",
+    )
+    .eq("cancer_type", profile.cancer_type)
+    .maybeSingle();
+
   const ctx = buildWatchContext(profile);
-  const systemPrompt = buildWatchSystemPrompt(ctx);
+  // Si la KB contient un expert_network non vide, on l'utilise comme contexte
+  if (kb && kb.status === "ready" && Array.isArray(kb.expert_network) && kb.expert_network.length > 0) {
+    ctx.expertNetwork = JSON.stringify(kb.expert_network);
+  }
+  const { buildKnowledgeContextBlock } = await import("@/lib/knowledge-context");
+  const systemPrompt = buildWatchSystemPrompt(ctx) + buildKnowledgeContextBlock(kb);
 
   // Appel Claude Opus + web_search
   const apiKey = process.env.ANTHROPIC_API_KEY;

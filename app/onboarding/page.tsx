@@ -165,7 +165,26 @@ export default function OnboardingPage() {
         .eq("id", family.id);
       if (updErr) throw updErr;
 
-      router.push("/biologie");
+      // 7. Fire-and-forget : lancer la génération de la knowledge base pour ce
+      //    type de cancer si pas encore présente (table partagée). L'user
+      //    continue l'onboarding sans attendre.
+      const kbLabel =
+        state.cancerType === "custom"
+          ? state.customCancerLabel
+          : profile?.label ?? state.cancerType;
+      fetch("/api/claude/generate-knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cancer_type: state.cancerType,
+          cancer_type_label: kbLabel,
+          country: "France",
+        }),
+      }).catch(() => {
+        // silencieux : pas bloquant
+      });
+
+      router.push("/timeline");
       router.refresh();
     } catch (e) {
       // Supabase PostgrestError n'est pas instanceof Error mais a .message/.details/.hint

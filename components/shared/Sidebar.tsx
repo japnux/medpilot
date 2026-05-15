@@ -8,12 +8,13 @@ import {
   Stethoscope,
   History,
   Telescope,
+  BookOpen,
   Settings,
   LogOut,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/browser";
 
-const NAV = [
+const BASE_NAV = [
   { href: "/analyzer", label: "Analyser", icon: FileSearch },
   { href: "/biologie", label: "Biologie", icon: Activity },
   { href: "/consultation", label: "Consultation", icon: Stethoscope },
@@ -21,13 +22,26 @@ const NAV = [
   { href: "/watch", label: "Veille", icon: Telescope },
 ];
 
+interface SidebarProps {
+  /** cancer_type courant du profil (pour lien dynamique vers la fiche). */
+  cancerType?: string | null;
+}
+
 /**
  * Sidebar desktop (fixe à gauche) + bottom nav mobile.
  * Navigation entre les 4 modules + Settings + déconnexion.
  */
-export default function Sidebar() {
+export default function Sidebar({ cancerType }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  // Liens dynamiques selon le profil cancer (lien fiche cancer en plus si défini)
+  const NAV = cancerType
+    ? [
+        ...BASE_NAV,
+        { href: `/knowledge/${cancerType}`, label: "Fiche cancer", icon: BookOpen },
+      ]
+    : BASE_NAV;
 
   async function logout() {
     const supabase = createClient();
@@ -88,8 +102,12 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* Mobile : bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-hairline bg-canvas grid grid-cols-6 no-print">
+      {/* Mobile : bottom nav (5 NAV de base + Réglages + éventuelle fiche cancer) */}
+      <nav
+        className={`md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-hairline bg-canvas grid no-print ${
+          cancerType ? "grid-cols-7" : "grid-cols-6"
+        }`}
+      >
         {[...NAV, { href: "/settings", label: "Réglages", icon: Settings }].map(
           (item) => {
             const active = pathname.startsWith(item.href);

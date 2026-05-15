@@ -54,7 +54,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex flex-1 min-h-0">
-      <Sidebar />
+      <Sidebar cancerType={profile?.cancer_type ?? null} />
       <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
         <Header
           patientName={profile?.patient_first_name ?? null}
