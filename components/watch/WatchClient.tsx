@@ -728,11 +728,21 @@ function ExpertCenterCard({
       {center.specialty_focus && (
         <p className="text-xs text-body">{center.specialty_focus}</p>
       )}
-      {center.key_contacts && center.key_contacts.length > 0 && (
-        <p className="text-[11px] text-muted">
-          <span className="font-medium">Contacts :</span> {center.key_contacts.join(", ")}
-        </p>
-      )}
+      {(() => {
+        // key_contacts peut arriver en string ou array (selon Claude)
+        const kc = center.key_contacts as unknown;
+        let label: string | null = null;
+        if (Array.isArray(kc) && kc.length > 0) {
+          label = kc.filter((x) => typeof x === "string" && x.trim()).join(", ");
+        } else if (typeof kc === "string" && kc.trim()) {
+          label = kc.trim();
+        }
+        return label ? (
+          <p className="text-[11px] text-muted">
+            <span className="font-medium">Contacts :</span> {label}
+          </p>
+        ) : null;
+      })()}
       {center.how_to_access && (
         <p className="text-[11px] text-muted-soft italic">{center.how_to_access}</p>
       )}
