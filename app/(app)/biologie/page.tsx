@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { CANCER_PROFILES, type MarkerDef } from "@/lib/cancer-profiles";
 import MarkerCard from "@/components/dashboard/MarkerCard";
 import BiologyTrendsCard from "@/components/dashboard/BiologyTrendsCard";
+import BilansHistory from "@/components/dashboard/BilansHistory";
 import AlertBanner from "@/components/shared/AlertBanner";
 
 export const dynamic = "force-dynamic";
@@ -55,10 +56,22 @@ export default async function BiologiePage() {
 
   const { data: records } = await supabase
     .from("biology_records")
-    .select("marker_name, value, recorded_at, alert_level")
+    .select("marker_name, value, unit, recorded_at, alert_level, source_document_id")
     .eq("family_id", familyId)
     .gte("recorded_at", oneYearAgo.toISOString().slice(0, 10))
     .order("recorded_at", { ascending: false });
+
+  // Charger les documents sources liés (pour afficher titre + médecin par bilan)
+  const docIds = Array.from(
+    new Set((records ?? []).map((r) => r.source_document_id).filter(Boolean)),
+  ) as string[];
+  const { data: docs } = docIds.length
+    ? await supabase
+        .from("medical_documents")
+        .select("id, title, doctor_name")
+        .in("id", docIds)
+    : { data: [] };
+  const docById = new Map((docs ?? []).map((d) => [d.id, d]));
 
   // Grouper par marker_name (records ordonné desc)
   const byMarker: Record<
@@ -73,6 +86,37 @@ export default async function BiologiePage() {
       alert_level: r.alert_level,
     });
   }
+
+  // Grouper par date pour la section "Historique des bilans"
+  const byDate = new Map<
+    string,
+    { records: typeof records; source_doc_id: string | null }
+  >();
+  for (const r of records ?? []) {
+    const date = r.recorded_at;
+    if (!byDate.has(date)) {
+      byDate.set(date, { records: [], source_doc_id: r.source_document_id });
+    }
+    byDate.get(date)!.records!.push(r);
+  }
+  const bilans = Array.from(byDate.entries())
+    .map(([date, { records: list, source_doc_id }]) => ({
+      date,
+      records:
+        list?.map((r) => ({
+          marker_name: r.marker_name,
+          value: r.value,
+          unit: r.unit,
+          alert_level: r.alert_level,
+          source_document_id: r.source_document_id,
+        })) ?? [],
+      source_document: source_doc_id
+        ? (docById.get(source_doc_id) as
+            | { id: string; title: string; doctor_name: string | null }
+            | undefined) ?? null
+        : null,
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   // Détecter les alertes critiques sur la dernière valeur de chaque marqueur
   const criticals: string[] = [];
@@ -117,16 +161,25 @@ export default async function BiologiePage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {markersWithData.map(([key, marker]) => (
-            <MarkerCard
-              key={key}
-              markerKey={key}
-              marker={marker}
-              records={byMarker[key] ?? []}
-            />
-          ))}
-        </div>
+        <>
+          <section className="space-y-3">
+            <h2 className="text-base font-medium text-ink border-b border-hairline pb-2">
+              Marqueurs & évolutions
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {markersWithData.map(([key, marker]) => (
+                <MarkerCard
+                  key={key}
+                  markerKey={key}
+                  marker={marker}
+                  records={byMarker[key] ?? []}
+                />
+              ))}
+            </div>
+          </section>
+
+          <BilansHistory bilans={bilans} markers={markers} />
+        </>
       )}
     </div>
   );

@@ -150,36 +150,58 @@ export async function POST(request: NextRequest) {
     })
     .join("\n");
 
-  const surgeryNote = profile?.surgery_date
-    ? `\nDate chirurgie : ${profile.surgery_date}.`
-    : "";
-  const treatmentsNote =
+  // Calculer la chronologie des bilans
+  const recordDates = Array.from(new Set(records.map((r) => r.recorded_at))).sort();
+  const earliestRecord = recordDates[0];
+  const latestRecord = recordDates[recordDates.length - 1];
+  const surgeryDate = profile?.surgery_date as string | null;
+
+  // Y a-t-il au moins un bilan APRÈS la chirurgie ?
+  const hasPostSurgery = surgeryDate
+    ? recordDates.some((d) => d >= surgeryDate)
+    : false;
+  const allBeforeSurgery = surgeryDate
+    ? recordDates.every((d) => d < surgeryDate)
+    : false;
+
+  const timelineNote = surgeryDate
+    ? `\n\n⏱️ CHRONOLOGIE PATIENT
+- Date chirurgie : ${surgeryDate}
+- Bilan le plus ancien dans les données : ${earliestRecord}
+- Bilan le plus récent dans les données : ${latestRecord}
+- ${hasPostSurgery ? "Au moins un bilan EST post-chirurgical." : "TOUS les bilans listés sont ANTÉRIEURS à la chirurgie."}`
+    : `\n\n⏱️ Pas de date de chirurgie renseignée.`;
+
+  const treatmentsList =
     Array.isArray(profile?.active_treatments) &&
     (profile!.active_treatments as Array<{ name?: string }>).length > 0
-      ? `\nTraitements actuels (ne s'appliquent QUE depuis la chirurgie ou plus tard) : ${(profile!.active_treatments as Array<{ name?: string }>)
+      ? (profile!.active_treatments as Array<{ name?: string }>)
           .map((t) => t.name)
           .filter(Boolean)
-          .join(", ")}.`
-      : "";
+          .join(", ")
+      : null;
 
-  const system = `Tu es un assistant médical pour un accompagnant familial d'un patient atteint de ${profile?.cancer_label ?? "cancer"}.${surgeryNote}${treatmentsNote}
+  const system = `Tu es un assistant médical pour un accompagnant familial d'un patient atteint de ${profile?.cancer_label ?? "cancer"}.${timelineNote}
 
 Analyse les tendances des marqueurs biologiques ci-dessous. Sois prudent mais clair, comme un confrère qui prépare une synthèse pour un proche non-médecin.
 
-RÈGLES :
-- Si plusieurs mesures existent pour un marqueur, identifie une tendance (en hausse / en baisse / stable).
-- Si une mesure isolée existe, signale-la sans extrapoler.
-- Ne mentionne un traitement médicamenteux que si tu as la PREUVE qu'il s'applique à la date des mesures (date du bilan ≥ date de chirurgie). Si tu n'es pas sûr, ne l'évoque pas.
-- Ne fais pas de prescription, ne pose pas de diagnostic. Suggère des questions à poser au médecin.
+⚠️ RÈGLES TEMPORELLES STRICTES ⚠️
+1. Tu DOIS situer chaque mesure par rapport à la chronologie patient (avant/après chirurgie).
+2. ${allBeforeSurgery ? "TOUS les bilans listés sont AVANT la chirurgie. Tu n'as AUCUN bilan post-chirurgical disponible. Ne parle JAMAIS de récupération post-opératoire, de réponse au traitement adjuvant, ou d'effets de médicaments adjuvants. Tu peux uniquement décrire un état PRÉ-OPÉRATOIRE." : "Distingue clairement les bilans pré-chirurgicaux des bilans post-chirurgicaux."}
+3. Si plusieurs bilans à des dates différentes existent pour un marqueur : calcule la variation entre eux en précisant la durée écoulée (ex : "ALAT stable sur 17 jours").
+4. Si une seule mesure existe : signale la valeur ponctuelle sans extrapoler de tendance.
+5. ${treatmentsList ? `Traitements actuels du patient : ${treatmentsList}. Ces traitements n'existent QUE depuis la chirurgie (${surgeryDate ?? "date inconnue"}). Tu ne dois JAMAIS attribuer un effet de ces médicaments à une mesure datée AVANT la chirurgie.` : "Pas de traitement renseigné."}
+6. Ne mentionne un traitement médicamenteux que si la date du bilan est ≥ date de chirurgie ET que le traitement est explicitement listé. Sinon, ne l'évoque PAS.
+7. Pas de prescription, pas de diagnostic. Suggère des questions à poser au médecin.
 
 Réponds UNIQUEMENT en JSON :
 {
-  "overall": "synthèse en 2-3 phrases simples",
+  "overall": "synthèse en 2-3 phrases factuelles (avec mention explicite du contexte temporel : pré-op / post-op / mixte)",
   "favorable": ["marqueurs en évolution favorable, formulés simplement"],
   "concerning": ["marqueurs préoccupants ou à surveiller"],
   "recommendations": ["actions à envisager (questions au médecin, examens à planifier)"],
   "highlights": [
-    {"marker_label": "nom du marqueur", "trend": "up|down|stable", "note": "1 phrase explicative"}
+    {"marker_label": "nom du marqueur", "trend": "up|down|stable", "note": "1 phrase explicative avec mention de la durée si plusieurs mesures"}
   ]
 }`;
 

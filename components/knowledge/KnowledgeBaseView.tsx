@@ -20,11 +20,43 @@ import {
   Heart,
   HelpCircle,
   Newspaper,
-  Library,
   ExternalLink,
   RefreshCw,
   Sparkles,
 } from "lucide-react";
+
+/**
+ * Lien externe protégé : ne rend rien si url manquante / vide / # / not http(s).
+ * Évite "this page couldn't load" sur les <a href=""> que produit Claude
+ * quand il n'a pas trouvé de source pour un item.
+ */
+function SafeLink({
+  url,
+  label,
+  className,
+}: {
+  url?: string | null;
+  label?: string;
+  className?: string;
+}) {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "#" || !/^https?:\/\//i.test(trimmed)) return null;
+  return (
+    <a
+      href={trimmed}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={
+        className ??
+        "text-[11px] text-primary hover:text-primary-deep inline-flex items-center gap-1"
+      }
+    >
+      {label ?? "Source"}
+      <ExternalLink className="w-3 h-3" />
+    </a>
+  );
+}
 import type { CancerKnowledge } from "@/lib/knowledge-prompts";
 import { formatDateFr } from "@/lib/dates";
 
@@ -128,7 +160,6 @@ export default function KnowledgeBaseView({
   }
 
   const redFlags = data.red_flags ?? [];
-  const sources = data.sources ?? [];
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -240,34 +271,6 @@ export default function KnowledgeBaseView({
       <Section icon={Newspaper} title="Évolutions récentes">
         <UpdatesBlock updates={data.recent_updates ?? []} />
       </Section>
-
-      {/* Sources footer */}
-      {sources.length > 0 && (
-        <footer className="rounded-xl border border-hairline bg-canvas-soft p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <Library className="w-4 h-4 text-muted" />
-            <h3 className="text-xs font-medium text-ink uppercase tracking-wider">
-              Sources ({sources.length})
-            </h3>
-          </div>
-          <ul className="text-[11px] text-muted space-y-0.5">
-            {sources.map((s, i) => (
-              <li key={i}>
-                <a
-                  href={s.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-primary inline-flex items-center gap-1"
-                >
-                  {s.title}
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-                {s.type && <span className="text-muted-soft"> · {s.type}</span>}
-              </li>
-            ))}
-          </ul>
-        </footer>
-      )}
 
       <p className="text-xs text-muted-soft text-center pt-4 max-w-2xl mx-auto">
         Cette fiche est un référentiel généré par Claude Opus 4.7 avec recherche
@@ -459,6 +462,12 @@ function ProtocolsBlock({ protocols }: { protocols: CancerKnowledge["standard_pr
               <span className="font-medium">Essai pivot : </span>{p.pivot_trial}
             </p>
           )}
+          {/* Lien direct si Claude a sourcé un URL ou pivot_trial_url */}
+          <SafeLink
+            url={(p as unknown as { url?: string; pivot_trial_url?: string }).url ??
+              (p as unknown as { pivot_trial_url?: string }).pivot_trial_url}
+            label="Source"
+          />
         </div>
       ))}
     </div>
@@ -479,17 +488,7 @@ function TrialsBlock({ trials }: { trials: CancerKnowledge["clinical_trials_land
           {t.nct_id && <p className="text-[11px] text-muted tabular">{t.nct_id}</p>}
           {t.context && <p className="text-xs text-body">{t.context}</p>}
           {t.rationale && <p className="text-[11px] text-muted">{t.rationale}</p>}
-          {t.url && (
-            <a
-              href={t.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] text-primary hover:text-primary-deep inline-flex items-center gap-1"
-            >
-              Voir
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
+          <SafeLink url={t.url} label="Voir" />
         </div>
       ))}
     </div>
@@ -643,28 +642,8 @@ function ExpertNetworkBlock({ network }: { network: CancerKnowledge["expert_netw
           )}
           {n.scope && <p className="text-xs text-body">{n.scope}</p>}
           <div className="flex gap-3 flex-wrap">
-            {n.url && (
-              <a
-                href={n.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-primary hover:text-primary-deep inline-flex items-center gap-1"
-              >
-                Site
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
-            {n.centers_list_url && (
-              <a
-                href={n.centers_list_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-primary hover:text-primary-deep inline-flex items-center gap-1"
-              >
-                Liste centres
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
+            <SafeLink url={n.url} label="Site" />
+            <SafeLink url={n.centers_list_url} label="Liste centres" />
           </div>
         </div>
       ))}
@@ -676,35 +655,35 @@ function ResourcesBlock({ resources }: { resources: CancerKnowledge["patient_res
   if (resources.length === 0) return <NoteFallback />;
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-      {resources.map((r, i) => (
-        <div key={i} className="rounded border border-hairline bg-canvas p-3 space-y-1">
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <p className="text-sm font-medium text-ink">{r.name}</p>
-            {r.type && (
-              <span className="text-[10px] text-muted-soft uppercase">
-                {r.type.replace("_", " ")}
-              </span>
+      {resources.map((r, i) => {
+        // Tolère un champ "contact" en plus de "url" (sortie Haiku)
+        const url =
+          r.url ?? (r as unknown as { contact?: string }).contact ?? null;
+        return (
+          <div key={i} className="rounded border border-hairline bg-canvas p-3 space-y-1">
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p className="text-sm font-medium text-ink">{r.name}</p>
+              {r.type && (
+                <span className="text-[10px] text-muted-soft uppercase">
+                  {r.type.replace("_", " ")}
+                </span>
+              )}
+            </div>
+            {r.description && <p className="text-xs text-body">{r.description}</p>}
+            {(r as unknown as { services?: string }).services && (
+              <p className="text-xs text-body">
+                {(r as unknown as { services?: string }).services}
+              </p>
             )}
+            {r.quality_signal && (
+              <p className="text-[11px] text-muted">
+                <span className="font-medium text-ink">Qualité : </span>{r.quality_signal}
+              </p>
+            )}
+            <SafeLink url={url} label="Ouvrir" />
           </div>
-          {r.description && <p className="text-xs text-body">{r.description}</p>}
-          {r.quality_signal && (
-            <p className="text-[11px] text-muted">
-              <span className="font-medium text-ink">Qualité : </span>{r.quality_signal}
-            </p>
-          )}
-          {r.url && (
-            <a
-              href={r.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] text-primary hover:text-primary-deep inline-flex items-center gap-1"
-            >
-              Ouvrir
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -748,17 +727,7 @@ function UpdatesBlock({ updates }: { updates: CancerKnowledge["recent_updates"] 
             {u.impact_level && <span className="badge-pill text-[9px]">{u.impact_level}</span>}
           </div>
           {u.summary && <p className="text-xs text-body">{u.summary}</p>}
-          {u.source_url && (
-            <a
-              href={u.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] text-primary hover:text-primary-deep inline-flex items-center gap-1"
-            >
-              Source
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
+          <SafeLink url={u.source_url} label="Source" />
         </div>
       ))}
     </div>
