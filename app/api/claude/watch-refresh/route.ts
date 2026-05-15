@@ -107,7 +107,12 @@ export async function POST(request: NextRequest) {
     ctx.expertNetwork = JSON.stringify(kb.expert_network);
   }
   const { buildKnowledgeContextBlock } = await import("@/lib/knowledge-context");
-  const systemPrompt = buildWatchSystemPrompt(ctx) + buildKnowledgeContextBlock(kb);
+  const { enrichWithMedications } = await import("@/lib/medications-context");
+  const medicationsBlock = await enrichWithMedications(supabase, family_id);
+  const systemPrompt =
+    buildWatchSystemPrompt(ctx) +
+    buildKnowledgeContextBlock(kb) +
+    medicationsBlock;
 
   // Appel Claude Opus + web_search
   const apiKey = process.env.ANTHROPIC_API_KEY;

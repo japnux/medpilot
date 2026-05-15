@@ -43,6 +43,18 @@ export type ConsultationStatus = "upcoming" | "completed" | "cancelled";
 
 export type AlertLevel = "normal" | "warning" | "critical";
 
+export type MedicationStatus = "active" | "stopped" | "paused" | "planned";
+
+export type MedicationRoute =
+  | "oral"
+  | "im"
+  | "iv"
+  | "sc"
+  | "topical"
+  | "inhaled"
+  | "sublingual"
+  | "other";
+
 export type EventType =
   | "surgery"
   | "consultation"
@@ -450,6 +462,89 @@ export interface Database {
           duration_ms?: number | null;
         };
         Update: Partial<Database["public"]["Tables"]["api_usage_logs"]["Insert"]>;
+        Relationships: [];
+      };
+      medications: {
+        Row: {
+          id: string;
+          family_id: string;
+          created_by: string | null;
+          name: string;
+          brand_name: string | null;
+          active_ingredient: string | null;
+          dosage: string | null;
+          form: string | null;
+          posology: string;
+          route: MedicationRoute;
+          indication: string | null;
+          prescriber: string | null;
+          started_at: string | null;
+          ended_at: string | null;
+          status: MedicationStatus;
+          status_reason: string | null;
+          notes: string | null;
+          wikipedia_url: string | null;
+          vidal_url: string | null;
+          ansm_url: string | null;
+          known_side_effects: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          created_by?: string | null;
+          name: string;
+          brand_name?: string | null;
+          active_ingredient?: string | null;
+          dosage?: string | null;
+          form?: string | null;
+          posology: string;
+          route?: MedicationRoute;
+          indication?: string | null;
+          prescriber?: string | null;
+          started_at?: string | null;
+          ended_at?: string | null;
+          status?: MedicationStatus;
+          status_reason?: string | null;
+          notes?: string | null;
+          wikipedia_url?: string | null;
+          vidal_url?: string | null;
+          ansm_url?: string | null;
+          known_side_effects?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["medications"]["Insert"]>;
+        Relationships: [];
+      };
+      medication_references: {
+        Row: {
+          id: string;
+          name: string;
+          brand_name: string | null;
+          active_ingredient: string | null;
+          category: string | null;
+          default_indication: string | null;
+          wikipedia_url: string | null;
+          vidal_url: string | null;
+          ansm_url: string | null;
+          common_side_effects: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          brand_name?: string | null;
+          active_ingredient?: string | null;
+          category?: string | null;
+          default_indication?: string | null;
+          wikipedia_url?: string | null;
+          vidal_url?: string | null;
+          ansm_url?: string | null;
+          common_side_effects?: Json;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["medication_references"]["Insert"]
+        >;
         Relationships: [];
       };
       surveillance_alerts: {

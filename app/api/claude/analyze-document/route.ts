@@ -86,9 +86,14 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   const { buildKnowledgeContextBlock } = await import("@/lib/knowledge-context");
+  const { enrichWithMedications } = await import("@/lib/medications-context");
+  const medicationsBlock = await enrichWithMedications(supabase, family_id);
 
   const ctx = buildPromptContext(profile);
-  const system = interpolate(DOCUMENT_ANALYSIS_PROMPT, ctx) + buildKnowledgeContextBlock(kb);
+  const system =
+    interpolate(DOCUMENT_ANALYSIS_PROMPT, ctx) +
+    buildKnowledgeContextBlock(kb) +
+    medicationsBlock;
 
   // Construction du message utilisateur : texte fourni OU instruction d'analyse du PDF joint
   const userMessage = text && text.trim().length >= 20

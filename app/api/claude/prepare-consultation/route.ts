@@ -89,6 +89,8 @@ export async function POST(request: NextRequest) {
     .eq("cancer_type", profile.cancer_type)
     .maybeSingle();
   const { buildKnowledgeContextBlock } = await import("@/lib/knowledge-context");
+  const { enrichWithMedications } = await import("@/lib/medications-context");
+  const medicationsBlock = await enrichWithMedications(supabase, family_id);
 
   // 10 derniers événements timeline
   const { data: recent } = await supabase
@@ -217,7 +219,10 @@ export async function POST(request: NextRequest) {
     consultation_date: consultation_date ?? "non précisée",
   };
 
-  const system = interpolate(CONSULTATION_PREP_PROMPT, ctx) + buildKnowledgeContextBlock(kb);
+  const system =
+    interpolate(CONSULTATION_PREP_PROMPT, ctx) +
+    buildKnowledgeContextBlock(kb) +
+    medicationsBlock;
 
   const t0 = Date.now();
   try {

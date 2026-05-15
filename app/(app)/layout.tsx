@@ -27,11 +27,18 @@ export default async function AppLayout({
     .maybeSingle();
   if (!membership) redirect("/onboarding");
 
-  const { data: profile } = await supabase
-    .from("cancer_profiles")
-    .select("cancer_type, patient_first_name")
-    .eq("family_id", membership.family_id)
-    .maybeSingle();
+  const [{ data: profile }, { count: medicationsActiveCount }] = await Promise.all([
+    supabase
+      .from("cancer_profiles")
+      .select("cancer_type, patient_first_name")
+      .eq("family_id", membership.family_id)
+      .maybeSingle(),
+    supabase
+      .from("medications")
+      .select("id", { count: "exact", head: true })
+      .eq("family_id", membership.family_id)
+      .eq("status", "active"),
+  ]);
 
   const { count: pendingDecisionsCount } = await supabase
     .from("decisions")
@@ -46,6 +53,7 @@ export default async function AppLayout({
         patientName={profile?.patient_first_name ?? null}
         isAdmin={isAdminEmail(user.email)}
         pendingDecisionsCount={pendingDecisionsCount ?? 0}
+        medicationsActiveCount={medicationsActiveCount ?? 0}
       />
       <div className="flex-1 flex flex-col min-w-0">
         <main className="flex-1 overflow-auto">{children}</main>

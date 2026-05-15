@@ -25,7 +25,7 @@ interface NavItem {
   emoji: string;
   /** Sous-menus = onglets de la page (déplie au hover/click). */
   tabs?: Array<{ id: string; label: string }>;
-  /** Badge numérique optionnel (notifications, en attente, …). */
+  /** Badge numérique optionnel (notifications, décisions en attente, médicaments actifs, …). */
   badge?: number;
 }
 
@@ -57,6 +57,8 @@ interface SidebarProps {
   isAdmin?: boolean;
   /** Nombre de décisions en attente (affiche un badge sur l'entrée). */
   pendingDecisionsCount?: number;
+  /** Nombre de médicaments actifs (badge sur l'entrée Médicaments). */
+  medicationsActiveCount?: number;
 }
 
 const STORAGE_KEY = "medpilot:sidebar:collapsed";
@@ -66,6 +68,7 @@ export default function Sidebar({
   patientName,
   isAdmin,
   pendingDecisionsCount = 0,
+  medicationsActiveCount,
 }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -103,6 +106,12 @@ export default function Sidebar({
       label: "Décisions",
       emoji: "🎯",
       badge: pendingDecisionsCount,
+    },
+    {
+      href: "/medications",
+      label: "Médicaments",
+      emoji: "💊",
+      badge: medicationsActiveCount,
     },
     { href: "/timeline", label: "Timeline", emoji: "🗓️" },
     { href: "/watch", label: "Veille", emoji: "🔭", tabs: WATCH_TABS_NAV },
