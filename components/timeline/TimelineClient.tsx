@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { formatDateFr } from "@/lib/dates";
 import { getEventMeta } from "@/lib/timeline-events";
-import { getCategoryMeta, type DecisionRow } from "@/lib/decisions";
 import { AlertCircle, GitBranch } from "lucide-react";
 
 interface TimelineEvent {
@@ -17,20 +16,29 @@ interface TimelineEvent {
   linked_consultation_id: string | null;
 }
 
+interface DecisionCount {
+  total: number;
+  pending: number;
+}
+
+export interface DecisionCountMap {
+  documents: Record<string, DecisionCount>;
+  consultations: Record<string, DecisionCount>;
+}
+
 interface Props {
   familyId: string;
   events: TimelineEvent[];
-  pendingDecisions: DecisionRow[];
+  decisionCounts: DecisionCountMap;
 }
 
 /**
  * Timeline unifiée : axe chronologique vertical, du plus récent au plus ancien.
- * Tous les événements (chirurgie, consultations, documents, biologie) avec dots
- * colorés par type et clic vers la fiche détail. En tête de page, on fait
- * ressortir les décisions encore en attente (pour ne pas qu'elles se perdent
- * dans l'historique).
+ * Sur chaque carte d'événement lié à un document ou une consultation, on
+ * affiche une pill "N décisions" qui rappelle combien de choix ce document a
+ * fait émerger (et combien restent en attente).
  */
-export default function TimelineClient({ events, pendingDecisions }: Props) {
+export default function TimelineClient({ events, decisionCounts }: Props) {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-8">
       <header>
@@ -39,23 +47,6 @@ export default function TimelineClient({ events, pendingDecisions }: Props) {
           Tous les événements médicaux, du plus récent au plus ancien.
         </p>
       </header>
-
-      {pendingDecisions.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-medium text-ink flex items-center gap-2">
-            <GitBranch className="w-4 h-4 text-purple-600" />
-            Décisions en attente
-            <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/30">
-              {pendingDecisions.length}
-            </span>
-          </h2>
-          <ul className="space-y-2">
-            {pendingDecisions.map((d) => (
-              <PendingDecisionRow key={d.id} decision={d} />
-            ))}
-          </ul>
-        </section>
-      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-ink border-b border-hairline pb-2">
@@ -75,7 +66,11 @@ export default function TimelineClient({ events, pendingDecisions }: Props) {
             <div className="absolute left-3 top-2 bottom-2 w-px bg-surface-strong"></div>
 
             {events.map((e) => (
-              <EventItem key={e.id} event={e} />
+              <EventItem
+                key={e.id}
+                event={e}
+                decisionCount={pickDecisionCount(e, decisionCounts)}
+              />
             ))}
           </div>
         )}
@@ -84,7 +79,26 @@ export default function TimelineClient({ events, pendingDecisions }: Props) {
   );
 }
 
-function EventItem({ event }: { event: TimelineEvent }) {
+function pickDecisionCount(
+  e: TimelineEvent,
+  map: DecisionCountMap,
+): DecisionCount | null {
+  if (e.linked_document_id && map.documents[e.linked_document_id]) {
+    return map.documents[e.linked_document_id];
+  }
+  if (e.linked_consultation_id && map.consultations[e.linked_consultation_id]) {
+    return map.consultations[e.linked_consultation_id];
+  }
+  return null;
+}
+
+function EventItem({
+  event,
+  decisionCount,
+}: {
+  event: TimelineEvent;
+  decisionCount: DecisionCount | null;
+}) {
   const meta = getEventMeta(event.event_type);
   const Icon = meta.icon;
 
@@ -123,6 +137,25 @@ function EventItem({ event }: { event: TimelineEvent }) {
             Critique
           </span>
         )}
+        {decisionCount && decisionCount.total > 0 && (
+          <span
+            className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${
+              decisionCount.pending > 0
+                ? "bg-warning/10 text-warning border border-warning/30"
+                : "bg-purple-500/10 text-purple-600 border border-purple-500/30"
+            }`}
+            title={
+              decisionCount.pending > 0
+                ? `${decisionCount.pending} décision${decisionCount.pending > 1 ? "s" : ""} en attente`
+                : `${decisionCount.total} décision${decisionCount.total > 1 ? "s" : ""} actée${decisionCount.total > 1 ? "s" : ""}`
+            }
+          >
+            <GitBranch className="w-3 h-3" />
+            {decisionCount.pending > 0
+              ? `${decisionCount.pending}/${decisionCount.total} décision${decisionCount.total > 1 ? "s" : ""}`
+              : `${decisionCount.total} décision${decisionCount.total > 1 ? "s" : ""}`}
+          </span>
+        )}
       </div>
       <h3 className="text-sm font-medium text-ink">{event.title}</h3>
       {event.summary && (
@@ -142,65 +175,5 @@ function EventItem({ event }: { event: TimelineEvent }) {
       </div>
       {href ? <Link href={href}>{card}</Link> : card}
     </article>
-  );
-}
-
-function PendingDecisionRow({ decision: d }: { decision: DecisionRow }) {
-  const meta = getCategoryMeta(d.category);
-  const Icon = meta.icon;
-
-  const overdue =
-    d.due_date && new Date(d.due_date).getTime() < Date.now();
-
-  return (
-    <li>
-      <Link
-        href="/decisions"
-        className="block rounded-lg border border-warning/30 bg-warning/5 p-3 hover:bg-warning/10 transition-colors"
-      >
-        <div className="flex items-start gap-3">
-          <div
-            className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center"
-            style={{ backgroundColor: `${meta.color}1a` }}
-          >
-            <Icon className="w-3.5 h-3.5" style={{ color: meta.color }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5 mb-1">
-              <span
-                className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded"
-                style={{
-                  color: meta.color,
-                  backgroundColor: `${meta.color}1a`,
-                  border: `1px solid ${meta.color}40`,
-                }}
-              >
-                {meta.label}
-              </span>
-              {d.priority === "high" && (
-                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-error/10 text-error border border-error/30">
-                  Prioritaire
-                </span>
-              )}
-              {d.due_date && (
-                <span
-                  className={`text-[10px] ${overdue ? "text-error font-medium" : "text-muted"}`}
-                >
-                  Échéance {formatDateFr(d.due_date)}
-                  {overdue ? " — en retard" : ""}
-                </span>
-              )}
-            </div>
-            <p className="text-sm font-medium text-ink">{d.title}</p>
-            {d.question && (
-              <p className="text-xs text-body mt-0.5 line-clamp-2">
-                {d.question}
-              </p>
-            )}
-          </div>
-          <span className="shrink-0 text-xs text-muted hover:text-ink">→</span>
-        </div>
-      </Link>
-    </li>
   );
 }

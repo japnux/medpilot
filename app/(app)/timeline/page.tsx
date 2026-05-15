@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import TimelineClient from "@/components/timeline/TimelineClient";
-import type { DecisionRow } from "@/lib/decisions";
+import TimelineClient, {
+  type DecisionCountMap,
+} from "@/components/timeline/TimelineClient";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function TimelinePage() {
     .maybeSingle();
   if (!membership) redirect("/onboarding");
 
-  const [{ data: events }, { data: pendingDecisions }] = await Promise.all([
+  const [{ data: events }, { data: decisions }] = await Promise.all([
     supabase
       .from("timeline_events")
       .select(
@@ -32,19 +33,42 @@ export default async function TimelinePage() {
       .limit(200),
     supabase
       .from("decisions")
-      .select("*")
-      .eq("family_id", membership.family_id)
-      .eq("status", "pending")
-      .order("priority", { ascending: true })
-      .order("due_date", { ascending: true, nullsFirst: false })
-      .limit(20),
+      .select("status, source_document_id, source_consultation_id")
+      .eq("family_id", membership.family_id),
   ]);
+
+  // Agrège les compteurs de décisions par source (document ou consultation)
+  const decisionCounts: DecisionCountMap = {
+    documents: {},
+    consultations: {},
+  };
+  for (const d of decisions ?? []) {
+    const isPending = d.status === "pending";
+    if (d.source_document_id) {
+      const k = d.source_document_id;
+      decisionCounts.documents[k] = decisionCounts.documents[k] ?? {
+        total: 0,
+        pending: 0,
+      };
+      decisionCounts.documents[k].total += 1;
+      if (isPending) decisionCounts.documents[k].pending += 1;
+    }
+    if (d.source_consultation_id) {
+      const k = d.source_consultation_id;
+      decisionCounts.consultations[k] = decisionCounts.consultations[k] ?? {
+        total: 0,
+        pending: 0,
+      };
+      decisionCounts.consultations[k].total += 1;
+      if (isPending) decisionCounts.consultations[k].pending += 1;
+    }
+  }
 
   return (
     <TimelineClient
       familyId={membership.family_id}
       events={events ?? []}
-      pendingDecisions={(pendingDecisions ?? []) as unknown as DecisionRow[]}
+      decisionCounts={decisionCounts}
     />
   );
 }
