@@ -95,6 +95,15 @@ export async function callClaudeJson<T = unknown>(
     .join("\n")
     .trim();
 
+  // Si Claude a été coupé par la limite max_tokens, le JSON est forcément
+  // incomplet — on remonte une erreur explicite plutôt que de planter sur le
+  // parser tolérant.
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(
+      `Réponse Claude tronquée (max_tokens atteint, ${response.usage.output_tokens} tokens sortis). Augmente max_tokens ou raccourcis la sortie demandée.`,
+    );
+  }
+
   const json = parseJsonResponse<T>(raw);
 
   return {

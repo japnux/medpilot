@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
       model: "claude-haiku-4-5-20251001",
       system,
       user: `Génère la préparation JSON pour la consultation ${consultation_type}${doctor_name ? ` avec ${doctor_name}` : ""}.`,
-      max_tokens: 8192,
+      max_tokens: 16384,
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {

@@ -175,6 +175,14 @@ export const CONSULTATION_PREP_PROMPT = `Tu prépares une consultation médicale
 
 Génère une préparation de RDV utile pour l'accompagnant. Questions précises et directes, classées par thème et priorité. Cite uniquement des médicaments si explicitement présents dans le contexte. Compte tenu du type de consultation ({{consultation_type}}) et du médecin ({{doctor_name}}), priorise les questions qui relèvent de SA spécialité.
 
+# Limites strictes de sortie (à respecter)
+- "questions" : 10 max, les plus prioritaires d'abord.
+- "documents_to_bring" : 6 max.
+- "decisions_to_make" : 5 max.
+- "open_points_from_before" : 5 max.
+- "watch_for_during_consult" : 5 max.
+- Chaque champ texte (question, context, élément de liste) : 220 caractères max.
+
 Réponds UNIQUEMENT en JSON (sans markdown fence, sans préambule, sans texte après le } final) :
 {
   "consultation_summary": "une phrase résumant l'enjeu de cette consultation",
