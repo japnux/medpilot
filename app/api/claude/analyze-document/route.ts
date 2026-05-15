@@ -2,6 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { callClaudeJson } from "@/lib/anthropic";
+
+// Claude Opus avec PDF peut prendre 30-60s : timeout généreux
+export const maxDuration = 90;
+export const runtime = "nodejs";
 import {
   buildPromptContext,
   DOCUMENT_ANALYSIS_PROMPT,
@@ -9,10 +13,19 @@ import {
   type DocumentAnalysisResult,
 } from "@/lib/prompts";
 
-const Schema = z.object({
-  family_id: z.string().uuid(),
-  text: z.string().min(20, "Le document est trop court"),
-});
+const Schema = z
+  .object({
+    family_id: z.string().uuid(),
+    text: z.string().optional(),
+    /** PDF en base64 (sans préfixe data:) si pas de texte extrait. */
+    pdf_base64: z.string().optional(),
+    /** Nom du fichier source pour traçage. */
+    pdf_name: z.string().optional(),
+  })
+  .refine(
+    (d) => (d.text && d.text.trim().length >= 20) || (d.pdf_base64 && d.pdf_base64.length > 0),
+    { message: "Fournir soit `text` (≥20 chars), soit `pdf_base64`." },
+  );
 
 /**
  * POST /api/claude/analyze-document
@@ -36,7 +49,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const { family_id, text } = parsed.data;
+  const { family_id, text, pdf_base64 } = parsed.data;
 
   // Vérif appartenance
   const { data: membership } = await supabase
@@ -65,11 +78,17 @@ export async function POST(request: NextRequest) {
   const ctx = buildPromptContext(profile);
   const system = interpolate(DOCUMENT_ANALYSIS_PROMPT, ctx);
 
+  // Construction du message utilisateur : texte fourni OU instruction d'analyse du PDF joint
+  const userMessage = text && text.trim().length >= 20
+    ? text
+    : "Analyse le document PDF ci-joint selon les consignes du système. Réponds uniquement en JSON.";
+
   try {
     const result = await callClaudeJson<DocumentAnalysisResult>({
       model: "claude-opus-4-7",
       system,
-      user: text,
+      user: userMessage,
+      pdf_base64: pdf_base64 || undefined,
       max_tokens: 4096,
     });
     return NextResponse.json({ ok: true, ...result });

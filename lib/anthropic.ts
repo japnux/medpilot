@@ -22,6 +22,12 @@ export interface CallClaudeOptions {
   system: string;
   /** Message utilisateur (le document, la question, etc.). */
   user: string;
+  /**
+   * PDF optionnel en base64 (sans préfixe data:). Si fourni, est envoyé
+   * en content block `document` natif Claude — le modèle lit alors le PDF
+   * directement (texte + images), idéal pour les scans non OCRisables.
+   */
+  pdf_base64?: string;
   /** Tokens max (défaut 4096). */
   max_tokens?: number;
 }
@@ -53,11 +59,33 @@ export async function callClaudeJson<T = unknown>(
   opts: CallClaudeOptions,
 ): Promise<ClaudeJsonResult<T>> {
   const client = getClient();
+
+  // Si un PDF est fourni, on l'envoie en content block `document` (vision
+  // multimodale Claude — supporte les scans). Sinon, simple message texte.
+  const messages: Anthropic.MessageParam[] = opts.pdf_base64
+    ? [
+        {
+          role: "user",
+          content: [
+            {
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: opts.pdf_base64,
+              },
+            },
+            { type: "text", text: opts.user },
+          ],
+        },
+      ]
+    : [{ role: "user", content: opts.user }];
+
   const response = await client.messages.create({
     model: opts.model ?? "claude-opus-4-7",
     max_tokens: opts.max_tokens ?? 4096,
     system: opts.system,
-    messages: [{ role: "user", content: opts.user }],
+    messages,
   });
 
   // Concatène tous les blocs text

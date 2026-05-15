@@ -27,12 +27,19 @@ export default function AnalyzerClient({ familyId, history }: Props) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [parsingPdf, setParsingPdf] = useState(false);
-  const [pdfInfo, setPdfInfo] = useState<{ name: string; pages: number; chars: number } | null>(null);
+  const [pdfInfo, setPdfInfo] = useState<{
+    name: string;
+    pages: number;
+    chars: number;
+    /** Base64 du PDF si le texte n'a pas pu être extrait (scan). À envoyer direct à Claude. */
+    base64?: string;
+  } | null>(null);
 
   async function handlePdf(file: File) {
     setError(null);
     setParsingPdf(true);
     setPdfInfo(null);
+    setText("");
     const form = new FormData();
     form.append("file", file);
     try {
@@ -46,17 +53,25 @@ export default function AnalyzerClient({ familyId, history }: Props) {
         return;
       }
       const extracted = (j.text ?? "").trim();
-      if (extracted.length < 20) {
-        setError(
-          `Ce PDF semble être un scan / image (${j.pages ?? "?"} page${j.pages > 1 ? "s" : ""}, ${extracted.length} caractères extraits). Collez le texte manuellement ci-dessous.`,
-        );
+
+      // Cas 1 : extraction texte réussie → on l'utilise (moins coûteux en tokens)
+      if (extracted.length >= 20) {
+        setText(extracted);
+        setPdfInfo({
+          name: file.name,
+          pages: j.pages ?? 0,
+          chars: extracted.length,
+        });
         return;
       }
-      setText(extracted);
+
+      // Cas 2 : PDF scanné, pas de texte → on garde le base64 pour envoi direct à Claude
+      const base64 = await fileToBase64(file);
       setPdfInfo({
         name: file.name,
         pages: j.pages ?? 0,
-        chars: extracted.length,
+        chars: 0,
+        base64,
       });
     } catch (e) {
       console.error("PDF parse error", e);
@@ -68,9 +83,26 @@ export default function AnalyzerClient({ familyId, history }: Props) {
     }
   }
 
+  /** Convertit un File en base64 sans préfixe data:. */
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // result = "data:application/pdf;base64,JVBE..."
+        const base64 = result.split(",")[1] ?? "";
+        resolve(base64);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function analyze() {
-    if (text.trim().length < 20) {
-      setError("Document trop court.");
+    const hasText = text.trim().length >= 20;
+    const hasPdf = !!pdfInfo?.base64;
+    if (!hasText && !hasPdf) {
+      setError("Collez du texte ou choisissez un PDF (≥20 caractères).");
       return;
     }
     setAnalyzing(true);
@@ -78,10 +110,17 @@ export default function AnalyzerClient({ familyId, history }: Props) {
     setResult(null);
     setSaved(false);
     try {
+      const body: Record<string, unknown> = { family_id: familyId };
+      if (hasText) {
+        body.text = text;
+      } else if (hasPdf) {
+        body.pdf_base64 = pdfInfo!.base64;
+        body.pdf_name = pdfInfo!.name;
+      }
       const res = await fetch("/api/claude/analyze-document", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ family_id: familyId, text }),
+        body: JSON.stringify(body),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? "Erreur d'analyse");
@@ -105,7 +144,9 @@ export default function AnalyzerClient({ familyId, history }: Props) {
           document_type: validateDocType(result.document_type),
           document_date: result.document_date,
           title: result.title,
-          raw_text: text,
+          raw_text: text || (pdfInfo?.base64
+            ? `[PDF scanné — ${pdfInfo.name}, ${pdfInfo.pages} pages — analysé directement par Claude vision]`
+            : ""),
           analysis_summary: JSON.parse(JSON.stringify(result)),
         })
         .select("id")
@@ -164,14 +205,18 @@ export default function AnalyzerClient({ familyId, history }: Props) {
         >
           <Upload className="w-6 h-6 text-slate-500 mx-auto mb-2" />
           {parsingPdf ? (
-            <p className="text-sm text-indigo-300">Extraction du PDF en cours...</p>
+            <p className="text-sm text-indigo-300">Lecture du PDF en cours...</p>
           ) : pdfInfo ? (
             <>
               <p className="text-sm text-emerald-300">
                 ✓ {pdfInfo.name}
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                {pdfInfo.pages} page{pdfInfo.pages > 1 ? "s" : ""} · {pdfInfo.chars.toLocaleString()} caractères extraits — cliquez pour changer
+                {pdfInfo.pages} page{pdfInfo.pages > 1 ? "s" : ""}
+                {pdfInfo.base64
+                  ? " · PDF scanné → sera lu directement par Claude (vision)"
+                  : ` · ${pdfInfo.chars.toLocaleString()} caractères extraits`}
+                {" — cliquez pour changer"}
               </p>
             </>
           ) : (
@@ -209,11 +254,15 @@ export default function AnalyzerClient({ familyId, history }: Props) {
 
         <div className="flex justify-between items-center">
           <p className="text-xs text-slate-500">
-            {text.length} caractères · analyse via Claude Opus 4.7
+            {pdfInfo?.base64
+              ? `PDF (${pdfInfo.pages} p.) · analyse via Claude Opus 4.7 (vision)`
+              : `${text.length} caractères · analyse via Claude Opus 4.7`}
           </p>
           <button
             onClick={analyze}
-            disabled={analyzing || text.trim().length < 20}
+            disabled={
+              analyzing || (text.trim().length < 20 && !pdfInfo?.base64)
+            }
             className="h-10 px-5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm font-medium text-white"
           >
             {analyzing ? "Analyse en cours…" : "Analyser"}
