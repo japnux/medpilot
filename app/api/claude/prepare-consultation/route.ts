@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { callClaudeJson } from "@/lib/anthropic";
+import { logApiUsage } from "@/lib/usage-tracker";
 import {
   buildPromptContext,
   CONSULTATION_PREP_PROMPT,
@@ -178,6 +179,7 @@ export async function POST(request: NextRequest) {
 
   const system = interpolate(CONSULTATION_PREP_PROMPT, ctx) + buildKnowledgeContextBlock(kb);
 
+  const t0 = Date.now();
   try {
     const result = await callClaudeJson<ConsultationPrepResult>({
       model: "claude-haiku-4-5-20251001",
@@ -185,9 +187,29 @@ export async function POST(request: NextRequest) {
       user: `Génère la préparation JSON pour la consultation ${consultation_type}${doctor_name ? ` avec ${doctor_name}` : ""}.`,
       max_tokens: 16384,
     });
+    await logApiUsage({
+      endpoint: "claude/prepare-consultation",
+      model: "claude-haiku-4-5-20251001",
+      input_tokens: result.usage.input_tokens,
+      output_tokens: result.usage.output_tokens,
+      family_id,
+      user_id: user.id,
+      duration_ms: Date.now() - t0,
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erreur Claude";
+    await logApiUsage({
+      endpoint: "claude/prepare-consultation",
+      model: "claude-haiku-4-5-20251001",
+      input_tokens: 0,
+      output_tokens: 0,
+      family_id,
+      user_id: user.id,
+      success: false,
+      error_message: msg,
+      duration_ms: Date.now() - t0,
+    });
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 }

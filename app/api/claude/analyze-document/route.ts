@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { callClaudeJson } from "@/lib/anthropic";
+import { logApiUsage } from "@/lib/usage-tracker";
 
 // Claude Opus avec PDF peut prendre 30-60s : timeout généreux
 export const maxDuration = 90;
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
     ? text
     : "Analyse le document PDF ci-joint selon les consignes du système. Réponds uniquement en JSON.";
 
+  const t0 = Date.now();
   try {
     const result = await callClaudeJson<DocumentAnalysisResult>({
       model: "claude-opus-4-7",
@@ -102,9 +104,29 @@ export async function POST(request: NextRequest) {
       pdf_base64: pdf_base64 || undefined,
       max_tokens: 4096,
     });
+    await logApiUsage({
+      endpoint: "claude/analyze-document",
+      model: "claude-opus-4-7",
+      input_tokens: result.usage.input_tokens,
+      output_tokens: result.usage.output_tokens,
+      family_id,
+      user_id: user.id,
+      duration_ms: Date.now() - t0,
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erreur Claude";
+    await logApiUsage({
+      endpoint: "claude/analyze-document",
+      model: "claude-opus-4-7",
+      input_tokens: 0,
+      output_tokens: 0,
+      family_id,
+      user_id: user.id,
+      success: false,
+      error_message: msg,
+      duration_ms: Date.now() - t0,
+    });
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 }

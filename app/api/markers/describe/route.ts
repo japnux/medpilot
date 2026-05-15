@@ -3,6 +3,7 @@ import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { logApiUsage } from "@/lib/usage-tracker";
 import type { MarkerDef } from "@/lib/cancer-profiles";
 
 export const runtime = "nodejs";
@@ -58,6 +59,15 @@ export async function POST(request: NextRequest) {
 
   // Déjà décrit ? retour direct
   if (existing?.description && existing.description.trim().length > 10) {
+    await logApiUsage({
+      endpoint: "markers/describe",
+      model: "claude-haiku-4-5-20251001",
+      input_tokens: 0,
+      output_tokens: 0,
+      cached: true,
+      family_id: membership.family_id,
+      user_id: user.id,
+    });
     return NextResponse.json({ description: existing.description, cached: true });
   }
 
@@ -66,6 +76,7 @@ export async function POST(request: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: "Clé Anthropic manquante" }, { status: 500 });
   const anthropic = new Anthropic({ apiKey });
 
+  const t0 = Date.now();
   const response = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 200,
@@ -77,6 +88,15 @@ export async function POST(request: NextRequest) {
         content: `Décris le marqueur biologique : ${marker_label}`,
       },
     ],
+  });
+  await logApiUsage({
+    endpoint: "markers/describe",
+    model: "claude-haiku-4-5-20251001",
+    input_tokens: response.usage.input_tokens,
+    output_tokens: response.usage.output_tokens,
+    family_id: membership.family_id,
+    user_id: user.id,
+    duration_ms: Date.now() - t0,
   });
 
   const description = response.content

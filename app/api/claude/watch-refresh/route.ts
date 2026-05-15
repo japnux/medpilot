@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { buildWatchSystemPrompt } from "@/lib/watch-prompts";
 import { buildWatchContext } from "@/lib/watch-context";
 import { parseJsonResponse } from "@/lib/anthropic";
+import { logApiUsage } from "@/lib/usage-tracker";
 
 // La web_search est lente (1-3 min). Limite Vercel : 300s côté Pro.
 export const runtime = "nodejs";
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
   }
   const anthropic = new Anthropic({ apiKey });
 
+  const t0 = Date.now();
   let response;
   try {
     response = await anthropic.messages.create({
@@ -137,8 +139,28 @@ export async function POST(request: NextRequest) {
         } as never,
       ],
     });
+    await logApiUsage({
+      endpoint: "claude/watch-refresh",
+      model: "claude-opus-4-7",
+      input_tokens: response.usage.input_tokens,
+      output_tokens: response.usage.output_tokens,
+      family_id,
+      user_id: user.id,
+      duration_ms: Date.now() - t0,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erreur Claude API";
+    await logApiUsage({
+      endpoint: "claude/watch-refresh",
+      model: "claude-opus-4-7",
+      input_tokens: 0,
+      output_tokens: 0,
+      family_id,
+      user_id: user.id,
+      success: false,
+      error_message: msg,
+      duration_ms: Date.now() - t0,
+    });
     return NextResponse.json({ error: `Claude API : ${msg}` }, { status: 502 });
   }
 
@@ -184,6 +206,14 @@ export async function POST(request: NextRequest) {
         system:
           "Tu reçois un texte exploratoire d'une veille médicale. Tu dois en extraire un JSON STRICTEMENT VALIDE avec la structure : { executive_summary: string, top_priorities: array, clinical_trials: array, publications: array, expert_centers: array, patient_resources: array, contextual_alerts: array }. Retourne UNIQUEMENT le JSON, rien d'autre. Si une section n'a pas de contenu, retourne []. Ne jamais inventer d'URL ou de référence.",
         messages: [{ role: "user", content: fullText }],
+      });
+      await logApiUsage({
+        endpoint: "claude/watch-refresh:haiku-fallback",
+        model: "claude-haiku-4-5-20251001",
+        input_tokens: structuring.usage.input_tokens,
+        output_tokens: structuring.usage.output_tokens,
+        family_id,
+        user_id: user.id,
       });
       const fallbackText = structuring.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")

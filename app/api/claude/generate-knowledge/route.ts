@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { buildKnowledgeSystemPrompt } from "@/lib/knowledge-prompts";
 import { parseJsonResponse } from "@/lib/anthropic";
+import { logApiUsage } from "@/lib/usage-tracker";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
     todayDate: new Date().toLocaleDateString("fr-FR"),
   });
 
+  const t0 = Date.now();
   try {
     const response = await anthropic.messages.create({
       model: "claude-opus-4-7",
@@ -112,6 +114,14 @@ export async function POST(request: NextRequest) {
           name: "web_search",
         } as never,
       ],
+    });
+    await logApiUsage({
+      endpoint: "claude/generate-knowledge",
+      model: "claude-opus-4-7",
+      input_tokens: response.usage.input_tokens,
+      output_tokens: response.usage.output_tokens,
+      user_id: user.id,
+      duration_ms: Date.now() - t0,
     });
 
     console.log(
@@ -141,6 +151,13 @@ export async function POST(request: NextRequest) {
         system:
           "Tu reçois un texte exploratoire d'une fiche médicale. Tu dois en extraire un JSON STRICTEMENT VALIDE avec les sections : overview, expert_network, staging_classification, biomarkers, standard_protocols, clinical_trials_landscape, surveillance_recommendations, side_effects_to_monitor, red_flags, genetic_considerations, patient_resources, key_questions_for_team, recent_updates, sources. Retourne UNIQUEMENT le JSON, rien d'autre. Si une section n'a pas de contenu, retourne {} ou [] selon le type. Ne pas inventer.",
         messages: [{ role: "user", content: fullText }],
+      });
+      await logApiUsage({
+        endpoint: "claude/generate-knowledge:haiku-fallback",
+        model: "claude-haiku-4-5-20251001",
+        input_tokens: haiku.usage.input_tokens,
+        output_tokens: haiku.usage.output_tokens,
+        user_id: user.id,
       });
       const fallback = haiku.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
@@ -202,6 +219,16 @@ export async function POST(request: NextRequest) {
       .update({ status: "failed" })
       .eq("id", placeholder.id);
     const msg = err instanceof Error ? err.message : "Erreur génération";
+    await logApiUsage({
+      endpoint: "claude/generate-knowledge",
+      model: "claude-opus-4-7",
+      input_tokens: 0,
+      output_tokens: 0,
+      user_id: user.id,
+      success: false,
+      error_message: msg,
+      duration_ms: Date.now() - t0,
+    });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

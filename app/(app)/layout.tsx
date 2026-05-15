@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/shared/Sidebar";
+import { isAdminEmail } from "@/lib/admin";
 
 /**
  * Layout authentifié partagé par tous les modules.
@@ -37,6 +38,7 @@ export default async function AppLayout({
       <Sidebar
         cancerType={profile?.cancer_type ?? null}
         patientName={profile?.patient_first_name ?? null}
+        isAdmin={isAdminEmail(user.email)}
       />
       <div className="flex-1 flex flex-col min-w-0">
         <main className="flex-1 overflow-auto">{children}</main>

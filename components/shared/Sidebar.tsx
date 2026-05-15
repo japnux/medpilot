@@ -14,6 +14,7 @@ import {
   PanelLeftClose,
   Menu,
   X,
+  ShieldCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -50,11 +51,13 @@ interface SidebarProps {
   cancerType?: string | null;
   /** Prénom du patient pour l'identité en haut de sidebar. */
   patientName?: string | null;
+  /** True si l'utilisateur est admin global (ADMIN_EMAILS). */
+  isAdmin?: boolean;
 }
 
 const STORAGE_KEY = "medpilot:sidebar:collapsed";
 
-export default function Sidebar({ cancerType, patientName }: SidebarProps) {
+export default function Sidebar({ cancerType, patientName, isAdmin }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -225,8 +228,23 @@ export default function Sidebar({ cancerType, patientName }: SidebarProps) {
           })}
         </nav>
 
-        {/* Pied : Paramètres + Déconnexion */}
+        {/* Pied : Admin (si autorisé) + Paramètres + Déconnexion */}
         <div className="pt-3 mt-3 border-t border-hairline space-y-0.5">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              onClick={() => setMobileOpen(false)}
+              title={collapsed ? "Admin" : undefined}
+              className={`flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-colors ${
+                pathname.startsWith("/admin")
+                  ? "bg-surface-card text-ink"
+                  : "text-body hover:text-ink hover:bg-surface-card"
+              } ${collapsed ? "justify-center" : ""}`}
+            >
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              {!collapsed && <span>Admin</span>}
+            </Link>
+          )}
           <Link
             href="/settings"
             onClick={() => setMobileOpen(false)}

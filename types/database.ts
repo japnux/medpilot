@@ -417,6 +417,40 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["ai_cache"]["Insert"]>;
         Relationships: [];
       };
+      api_usage_logs: {
+        Row: {
+          id: string;
+          created_at: string;
+          endpoint: string;
+          model: string;
+          input_tokens: number;
+          output_tokens: number;
+          cost_usd: number;
+          cached: boolean;
+          family_id: string | null;
+          user_id: string | null;
+          success: boolean;
+          error_message: string | null;
+          duration_ms: number | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          endpoint: string;
+          model: string;
+          input_tokens?: number;
+          output_tokens?: number;
+          cost_usd?: number;
+          cached?: boolean;
+          family_id?: string | null;
+          user_id?: string | null;
+          success?: boolean;
+          error_message?: string | null;
+          duration_ms?: number | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["api_usage_logs"]["Insert"]>;
+        Relationships: [];
+      };
       surveillance_alerts: {
         Row: {
           id: string;

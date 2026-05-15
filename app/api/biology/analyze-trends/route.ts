@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { callClaudeJson } from "@/lib/anthropic";
+import { logApiUsage } from "@/lib/usage-tracker";
 import { CANCER_PROFILES, type MarkerDef } from "@/lib/cancer-profiles";
 
 export const runtime = "nodejs";
@@ -96,6 +97,15 @@ export async function POST(request: NextRequest) {
       .eq("cache_type", "biology_trends")
       .maybeSingle();
     if (cached && cached.data_version === dataVersion) {
+      await logApiUsage({
+        endpoint: "biology/analyze-trends",
+        model: "claude-haiku-4-5-20251001",
+        input_tokens: 0,
+        output_tokens: 0,
+        cached: true,
+        family_id,
+        user_id: user.id,
+      });
       return NextResponse.json({
         ok: true,
         cached: true,
@@ -212,12 +222,22 @@ ${markerSerial}
 Génère l'analyse en JSON.`;
 
   // 5. Appel Claude (Haiku — analyse rapide)
+  const t0 = Date.now();
   try {
     const result = await callClaudeJson<TrendInsight>({
       model: "claude-haiku-4-5-20251001",
       system,
       user: user_message,
       max_tokens: 2048,
+    });
+    await logApiUsage({
+      endpoint: "biology/analyze-trends",
+      model: "claude-haiku-4-5-20251001",
+      input_tokens: result.usage.input_tokens,
+      output_tokens: result.usage.output_tokens,
+      family_id,
+      user_id: user.id,
+      duration_ms: Date.now() - t0,
     });
 
     // 6. Stocker en cache
@@ -243,6 +263,17 @@ Génère l'analyse en JSON.`;
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erreur Claude";
+    await logApiUsage({
+      endpoint: "biology/analyze-trends",
+      model: "claude-haiku-4-5-20251001",
+      input_tokens: 0,
+      output_tokens: 0,
+      family_id,
+      user_id: user.id,
+      success: false,
+      error_message: msg,
+      duration_ms: Date.now() - t0,
+    });
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 }
