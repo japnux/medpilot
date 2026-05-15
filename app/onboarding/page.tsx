@@ -168,7 +168,19 @@ export default function OnboardingPage() {
       router.push("/dashboard");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur inconnue");
+      // Supabase PostgrestError n'est pas instanceof Error mais a .message/.details/.hint
+      const err = e as {
+        message?: string;
+        details?: string;
+        hint?: string;
+        code?: string;
+      };
+      const msg =
+        err?.message ||
+        err?.details ||
+        (e instanceof Error ? e.message : null) ||
+        JSON.stringify(e).slice(0, 300);
+      setError(`${msg}${err?.hint ? ` — ${err.hint}` : ""}${err?.code ? ` [${err.code}]` : ""}`);
       setLoading(false);
     }
   }
