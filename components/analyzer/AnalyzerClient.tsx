@@ -26,9 +26,13 @@ export default function AnalyzerClient({ familyId, history }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [parsingPdf, setParsingPdf] = useState(false);
+  const [pdfInfo, setPdfInfo] = useState<{ name: string; pages: number; chars: number } | null>(null);
 
   async function handlePdf(file: File) {
     setError(null);
+    setParsingPdf(true);
+    setPdfInfo(null);
     const form = new FormData();
     form.append("file", file);
     try {
@@ -41,9 +45,26 @@ export default function AnalyzerClient({ familyId, history }: Props) {
         setError(`${j.error}. Collez le texte manuellement ci-dessous.`);
         return;
       }
-      setText(j.text);
+      const extracted = (j.text ?? "").trim();
+      if (extracted.length < 20) {
+        setError(
+          `Ce PDF semble être un scan / image (${j.pages ?? "?"} page${j.pages > 1 ? "s" : ""}, ${extracted.length} caractères extraits). Collez le texte manuellement ci-dessous.`,
+        );
+        return;
+      }
+      setText(extracted);
+      setPdfInfo({
+        name: file.name,
+        pages: j.pages ?? 0,
+        chars: extracted.length,
+      });
     } catch (e) {
-      setError("Impossible de lire le PDF. Collez le texte manuellement.");
+      console.error("PDF parse error", e);
+      setError(
+        `Impossible de lire le PDF (${e instanceof Error ? e.message : "erreur réseau"}). Collez le texte manuellement.`,
+      );
+    } finally {
+      setParsingPdf(false);
     }
   }
 
@@ -123,25 +144,59 @@ export default function AnalyzerClient({ familyId, history }: Props) {
 
       {/* Dropzone + textarea */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 space-y-3">
-        <label className="block">
-          <div className="border-2 border-dashed border-slate-700 hover:border-slate-600 rounded-lg p-6 text-center cursor-pointer">
-            <Upload className="w-6 h-6 text-slate-500 mx-auto mb-2" />
-            <p className="text-sm text-slate-300">
-              Choisir un PDF ou glissez-déposez ici
-            </p>
-            <p className="text-xs text-slate-500 mt-1">
-              Si l&apos;extraction échoue, collez le texte ci-dessous.
-            </p>
-            <input
-              type="file"
-              accept="application/pdf"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handlePdf(f);
-              }}
-              className="hidden"
-            />
-          </div>
+        <label
+          htmlFor="pdf-input"
+          className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+            parsingPdf
+              ? "border-indigo-500 bg-indigo-500/5"
+              : pdfInfo
+                ? "border-emerald-700/40 bg-emerald-900/10"
+                : "border-slate-700 hover:border-slate-600"
+          }`}
+          onDragOver={(e) => {
+            e.preventDefault();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const f = e.dataTransfer.files?.[0];
+            if (f && f.type === "application/pdf") handlePdf(f);
+          }}
+        >
+          <Upload className="w-6 h-6 text-slate-500 mx-auto mb-2" />
+          {parsingPdf ? (
+            <p className="text-sm text-indigo-300">Extraction du PDF en cours...</p>
+          ) : pdfInfo ? (
+            <>
+              <p className="text-sm text-emerald-300">
+                ✓ {pdfInfo.name}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                {pdfInfo.pages} page{pdfInfo.pages > 1 ? "s" : ""} · {pdfInfo.chars.toLocaleString()} caractères extraits — cliquez pour changer
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-slate-300">
+                Cliquez pour choisir un PDF ou glissez-déposez ici
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Si l&apos;extraction échoue (PDF scanné), collez le texte ci-dessous.
+              </p>
+            </>
+          )}
+          <input
+            id="pdf-input"
+            type="file"
+            accept="application/pdf"
+            disabled={parsingPdf}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handlePdf(f);
+              // Reset input pour permettre de re-sélectionner le même fichier
+              e.target.value = "";
+            }}
+            className="hidden"
+          />
         </label>
 
         <textarea
