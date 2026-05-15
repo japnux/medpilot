@@ -33,38 +33,38 @@ export default function Step2Patient({ state, update, onBack, onNext }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-white">Profil du patient</h2>
-        <p className="text-sm text-slate-400 mt-1">
+        <h2 className="text-2xl font-semibold text-ink">Profil du patient</h2>
+        <p className="text-sm text-muted mt-1">
           Informations de base et type de cancer.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <label className="block text-sm space-y-1">
-          <span className="text-slate-300">Prénom du patient</span>
+          <span className="text-body">Prénom du patient</span>
           <input
             value={state.patientFirstName}
             onChange={(e) => update({ patientFirstName: e.target.value })}
-            className="w-full h-11 px-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-indigo-500 focus:outline-none"
+            className="w-full h-11 px-3 rounded-lg bg-surface-card border border-hairline-strong text-ink focus:border-ink focus:outline-none"
           />
         </label>
         <label className="block text-sm space-y-1">
-          <span className="text-slate-300">Date de naissance</span>
+          <span className="text-body">Date de naissance</span>
           <input
             type="date"
             value={state.patientBirthDate}
             onChange={(e) => update({ patientBirthDate: e.target.value })}
-            className="w-full h-11 px-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-indigo-500 focus:outline-none"
+            className="w-full h-11 px-3 rounded-lg bg-surface-card border border-hairline-strong text-ink focus:border-ink focus:outline-none"
           />
         </label>
       </div>
 
       <label className="block text-sm space-y-1">
-        <span className="text-slate-300">Type de cancer</span>
+        <span className="text-body">Type de cancer</span>
         <select
           value={state.cancerType}
           onChange={(e) => update({ cancerType: e.target.value })}
-          className="w-full h-11 px-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-indigo-500 focus:outline-none"
+          className="w-full h-11 px-3 rounded-lg bg-surface-card border border-hairline-strong text-ink focus:border-ink focus:outline-none"
         >
           {CANCER_PROFILE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -75,23 +75,23 @@ export default function Step2Patient({ state, update, onBack, onNext }: Props) {
       </label>
 
       {isCustom && (
-        <div className="space-y-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+        <div className="space-y-4 rounded-lg border border-hairline bg-canvas-soft p-4">
           <label className="block text-sm space-y-1">
-            <span className="text-slate-300">Nom du cancer</span>
+            <span className="text-body">Nom du cancer</span>
             <input
               value={state.customCancerLabel}
               onChange={(e) => update({ customCancerLabel: e.target.value })}
               placeholder="ex : Carcinome rénal à cellules claires"
-              className="w-full h-11 px-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-indigo-500 focus:outline-none"
+              className="w-full h-11 px-3 rounded-lg bg-surface-card border border-hairline-strong text-ink focus:border-ink focus:outline-none"
             />
           </label>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-300">Marqueurs biologiques (optionnel)</span>
+              <span className="text-sm text-body">Marqueurs biologiques (optionnel)</span>
               <button
                 onClick={addMarker}
-                className="text-xs text-indigo-400 hover:text-indigo-300"
+                className="text-xs text-ink hover:text-ink"
               >
                 + Ajouter
               </button>
@@ -102,23 +102,23 @@ export default function Step2Patient({ state, update, onBack, onNext }: Props) {
                   placeholder="clé"
                   value={m.key}
                   onChange={(e) => updateMarker(i, { key: e.target.value })}
-                  className="col-span-2 h-9 px-2 rounded bg-slate-900 border border-slate-700 text-sm text-white"
+                  className="col-span-2 h-9 px-2 rounded bg-surface-card border border-hairline-strong text-sm text-ink"
                 />
                 <input
                   placeholder="libellé"
                   value={m.label}
                   onChange={(e) => updateMarker(i, { label: e.target.value })}
-                  className="col-span-3 h-9 px-2 rounded bg-slate-900 border border-slate-700 text-sm text-white"
+                  className="col-span-3 h-9 px-2 rounded bg-surface-card border border-hairline-strong text-sm text-ink"
                 />
                 <input
                   placeholder="unité"
                   value={m.unit}
                   onChange={(e) => updateMarker(i, { unit: e.target.value })}
-                  className="col-span-1 h-9 px-2 rounded bg-slate-900 border border-slate-700 text-sm text-white"
+                  className="col-span-1 h-9 px-2 rounded bg-surface-card border border-hairline-strong text-sm text-ink"
                 />
                 <button
                   onClick={() => removeMarker(i)}
-                  className="col-span-1 h-9 rounded border border-slate-700 text-xs text-slate-400 hover:text-red-400"
+                  className="col-span-1 h-9 rounded border border-hairline-strong text-xs text-muted hover:text-error"
                 >
                   ✕
                 </button>
@@ -131,14 +131,14 @@ export default function Step2Patient({ state, update, onBack, onNext }: Props) {
       <div className="flex justify-between pt-2">
         <button
           onClick={onBack}
-          className="h-11 px-5 rounded-lg border border-slate-700 text-slate-300 hover:border-slate-600"
+          className="h-11 px-5 rounded-lg border border-hairline-strong text-body hover:border-hairline-strong"
         >
           Retour
         </button>
         <button
           onClick={onNext}
           disabled={!canNext}
-          className="h-11 px-5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-medium"
+          className="h-11 px-5 rounded-lg bg-primary hover:bg-primary-active disabled:opacity-40 text-on-primary font-medium"
         >
           Suivant
         </button>

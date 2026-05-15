@@ -29,21 +29,21 @@ export default function Step4Invite({ onBack, onFinalize, loading }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-white">Inviter la famille</h2>
-        <p className="text-sm text-slate-400 mt-1">
+        <h2 className="text-2xl font-semibold text-ink">Inviter la famille</h2>
+        <p className="text-sm text-muted mt-1">
           Vous pouvez inviter des proches maintenant ou plus tard depuis les paramètres.
         </p>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-slate-300">Invitations</span>
-          <button onClick={add} className="text-xs text-indigo-400 hover:text-indigo-300">
+          <span className="text-sm text-body">Invitations</span>
+          <button onClick={add} className="text-xs text-ink hover:text-ink">
             + Ajouter
           </button>
         </div>
         {invites.length === 0 && (
-          <p className="text-xs text-slate-500 italic">
+          <p className="text-xs text-muted italic">
             Aucune invitation. Vous pourrez en envoyer depuis l&apos;onglet Paramètres après l&apos;onboarding.
           </p>
         )}
@@ -58,7 +58,7 @@ export default function Step4Invite({ onBack, onFinalize, loading }: Props) {
                 next[i].email = e.target.value;
                 setInvites(next);
               }}
-              className="col-span-3 h-9 px-2 rounded bg-slate-900 border border-slate-700 text-sm text-white"
+              className="col-span-3 h-9 px-2 rounded bg-surface-card border border-hairline-strong text-sm text-ink"
             />
             <select
               value={inv.role}
@@ -67,7 +67,7 @@ export default function Step4Invite({ onBack, onFinalize, loading }: Props) {
                 next[i].role = e.target.value as "patient" | "accompagnant";
                 setInvites(next);
               }}
-              className="col-span-2 h-9 px-2 rounded bg-slate-900 border border-slate-700 text-sm text-white"
+              className="col-span-2 h-9 px-2 rounded bg-surface-card border border-hairline-strong text-sm text-ink"
             >
               <option value="accompagnant">Proche</option>
               <option value="patient">Patient</option>
@@ -80,31 +80,31 @@ export default function Step4Invite({ onBack, onFinalize, loading }: Props) {
                 next[i].relation = e.target.value;
                 setInvites(next);
               }}
-              className="col-span-2 h-9 px-2 rounded bg-slate-900 border border-slate-700 text-sm text-white"
+              className="col-span-2 h-9 px-2 rounded bg-surface-card border border-hairline-strong text-sm text-ink"
             />
           </div>
         ))}
         {invites.length > 0 && (
-          <p className="text-xs text-amber-400 mt-2">
+          <p className="text-xs text-warning mt-2">
             Les invitations seront à confirmer depuis Paramètres → Membres après l&apos;onboarding.
           </p>
         )}
       </div>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-error">{error}</p>}
 
       <div className="flex justify-between pt-2">
         <button
           onClick={onBack}
           disabled={loading}
-          className="h-11 px-5 rounded-lg border border-slate-700 text-slate-300 hover:border-slate-600 disabled:opacity-40"
+          className="h-11 px-5 rounded-lg border border-hairline-strong text-body hover:border-hairline-strong disabled:opacity-40"
         >
           Retour
         </button>
         <button
           onClick={onFinalize}
           disabled={loading}
-          className="h-11 px-5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-medium"
+          className="h-11 px-5 rounded-lg bg-primary hover:bg-primary-active disabled:opacity-40 text-on-primary font-medium"
         >
           {loading ? "Création..." : "Terminer"}
         </button>

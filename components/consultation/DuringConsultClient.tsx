@@ -123,23 +123,23 @@ export default function DuringConsultClient({ consultation }: Props) {
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <Link
         href="/consultation"
-        className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white"
+        className="flex items-center gap-1.5 text-xs text-muted hover:text-ink"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> Retour
       </Link>
 
       <header>
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-semibold text-white">
+          <h1 className="text-2xl font-semibold text-ink">
             Consultation {consultation.consultation_type}
           </h1>
           {completed && (
-            <span className="px-2 py-0.5 rounded text-xs bg-emerald-500/15 text-emerald-300 border border-emerald-700/30">
+            <span className="px-2 py-0.5 rounded text-xs bg-success/10 text-success border border-success/30">
               Terminée
             </span>
           )}
         </div>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-sm text-muted mt-1">
           {formatDateFr(consultation.consultation_date)}
           {consultation.doctor_name && ` · ${consultation.doctor_name}`}
           {consultation.hospital && ` · ${consultation.hospital}`}
@@ -147,14 +147,14 @@ export default function DuringConsultClient({ consultation }: Props) {
       </header>
 
       {prep && (
-        <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-3">
-          <h2 className="text-sm font-medium text-white">Questions préparées</h2>
+        <section className="rounded-xl border border-hairline bg-surface-card p-5 space-y-3">
+          <h2 className="text-sm font-medium text-ink">Questions préparées</h2>
           <ul className="space-y-2">
             {prep.questions.map((q, i) => (
-              <li key={i} className="text-sm text-slate-200">
-                <span className="text-slate-500 mr-2">•</span>
+              <li key={i} className="text-sm text-body-strong">
+                <span className="text-muted mr-2">•</span>
                 {q.question}{" "}
-                <span className="text-xs text-slate-500">({q.theme})</span>
+                <span className="text-xs text-muted">({q.theme})</span>
               </li>
             ))}
           </ul>
@@ -162,22 +162,22 @@ export default function DuringConsultClient({ consultation }: Props) {
       )}
 
       {/* Notes pendant */}
-      <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-3">
-        <h2 className="text-sm font-medium text-white">Notes pendant le RDV</h2>
+      <section className="rounded-xl border border-hairline bg-surface-card p-5 space-y-3">
+        <h2 className="text-sm font-medium text-ink">Notes pendant le RDV</h2>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={6}
           placeholder="Notez ici ce qui est dit pendant la consultation..."
-          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-sm text-white"
+          className="w-full px-3 py-2 rounded-lg bg-canvas border border-hairline-strong text-sm text-ink"
         />
 
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-slate-400">Décisions prises</span>
+            <span className="text-xs text-muted">Décisions prises</span>
             <button
               onClick={() => addItem(decisions, setDecisions)}
-              className="text-xs text-indigo-400"
+              className="text-xs text-ink"
             >
               + Ajouter
             </button>
@@ -189,11 +189,11 @@ export default function DuringConsultClient({ consultation }: Props) {
                 onChange={(e) =>
                   updateItem(decisions, setDecisions, i, e.target.value)
                 }
-                className="flex-1 h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                className="flex-1 h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
               />
               <button
                 onClick={() => removeItem(decisions, setDecisions, i)}
-                className="px-2 text-xs text-slate-400 hover:text-red-400"
+                className="px-2 text-xs text-muted hover:text-error"
               >
                 ✕
               </button>
@@ -203,10 +203,10 @@ export default function DuringConsultClient({ consultation }: Props) {
 
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-slate-400">Actions de suivi</span>
+            <span className="text-xs text-muted">Actions de suivi</span>
             <button
               onClick={() => addItem(followups, setFollowups)}
-              className="text-xs text-indigo-400"
+              className="text-xs text-ink"
             >
               + Ajouter
             </button>
@@ -218,11 +218,11 @@ export default function DuringConsultClient({ consultation }: Props) {
                 onChange={(e) =>
                   updateItem(followups, setFollowups, i, e.target.value)
                 }
-                className="flex-1 h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                className="flex-1 h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
               />
               <button
                 onClick={() => removeItem(followups, setFollowups, i)}
-                className="px-2 text-xs text-slate-400 hover:text-red-400"
+                className="px-2 text-xs text-muted hover:text-error"
               >
                 ✕
               </button>
@@ -230,14 +230,14 @@ export default function DuringConsultClient({ consultation }: Props) {
           ))}
         </div>
 
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-error">{error}</p>}
 
         <div className="flex justify-end gap-2 pt-2">
           {!completed && (
             <button
               onClick={saveNotes}
               disabled={saving}
-              className="h-9 px-4 rounded-lg border border-slate-700 hover:border-slate-600 text-sm text-slate-200 disabled:opacity-40"
+              className="h-9 px-4 rounded-lg border border-hairline-strong hover:border-hairline-strong text-sm text-body-strong disabled:opacity-40"
             >
               {saving ? "..." : "Enregistrer"}
             </button>
@@ -246,7 +246,7 @@ export default function DuringConsultClient({ consultation }: Props) {
             <button
               onClick={markCompleted}
               disabled={saving}
-              className="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-sm font-medium text-white"
+              className="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-success hover:bg-success disabled:opacity-40 text-sm font-medium text-on-primary"
             >
               <CheckCircle className="w-4 h-4" />
               Marquer comme terminée

@@ -1,55 +1,220 @@
 @import "tailwindcss";
 
 /*
-  Palette MedPilot — ton sombre, médical, sobre.
-  Alertes : orange (warning) / rouge (critical). Aucune couleur flashy hors alertes.
+  MedPilot — Design system d'après DESIGN.md
+  Inspiration : ElevenLabs editorial. Off-white canvas + warm near-black ink.
+  Pas de couleur saturée pour les CTAs, ink pill uniquement.
+  Atmosphère pastel via gradient orbs (mint/peach/lavender/sky/rose).
 */
+
 :root {
-  --background: #0d1520;
-  --foreground: rgba(255, 255, 255, 0.85);
-  --surface: #111c2c;
-  --surface-elevated: #16243a;
-  --border: #1e2d44;
-  --muted: #64748b;
-  --primary: #6366f1;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --critical: #ef4444;
+  /* Ink / primary */
+  --primary: #292524;
+  --primary-active: #0c0a09;
+  --ink: #0c0a09;
+
+  /* Text */
+  --body: #4e4e4e;
+  --body-strong: #292524;
+  --muted: #777169;
+  --muted-soft: #a8a29e;
+
+  /* Hairlines */
+  --hairline: #e7e5e4;
+  --hairline-soft: #f0efed;
+  --hairline-strong: #d6d3d1;
+
+  /* Surfaces */
+  --canvas: #f5f5f5;
+  --canvas-soft: #fafafa;
+  --canvas-deep: #0c0a09;
+  --surface-card: #ffffff;
+  --surface-strong: #f0efed;
+  --surface-dark: #0c0a09;
+  --surface-dark-elevated: #1c1917;
+
+  /* On colors */
+  --on-primary: #ffffff;
+  --on-dark: #ffffff;
+  --on-dark-soft: #a8a29e;
+
+  /* Atmospheric gradient stops (décoratifs uniquement) */
+  --gradient-mint: #a7e5d3;
+  --gradient-peach: #f4c5a8;
+  --gradient-lavender: #c8b8e0;
+  --gradient-sky: #a8c8e8;
+  --gradient-rose: #e8b8c4;
+
+  /* Semantic */
+  --success: #16a34a;
+  --warning: #d97706;
+  --error: #dc2626;
 }
 
+/* Tokens Tailwind v4 — exposent les vars CSS comme classes utility */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-surface-elevated: var(--surface-elevated);
-  --color-border-soft: var(--border);
+  --color-canvas: var(--canvas);
+  --color-canvas-soft: var(--canvas-soft);
+  --color-canvas-deep: var(--canvas-deep);
+  --color-surface-card: var(--surface-card);
+  --color-surface-strong: var(--surface-strong);
+  --color-surface-dark: var(--surface-dark);
+  --color-surface-dark-elevated: var(--surface-dark-elevated);
+
+  --color-ink: var(--ink);
+  --color-body: var(--body);
+  --color-body-strong: var(--body-strong);
   --color-muted: var(--muted);
+  --color-muted-soft: var(--muted-soft);
+
+  --color-hairline: var(--hairline);
+  --color-hairline-soft: var(--hairline-soft);
+  --color-hairline-strong: var(--hairline-strong);
+
   --color-primary: var(--primary);
+  --color-primary-active: var(--primary-active);
+
+  --color-on-primary: var(--on-primary);
+  --color-on-dark: var(--on-dark);
+  --color-on-dark-soft: var(--on-dark-soft);
+
   --color-success: var(--success);
   --color-warning: var(--warning);
-  --color-critical: var(--critical);
+  --color-error: var(--error);
+
+  --color-orb-mint: var(--gradient-mint);
+  --color-orb-peach: var(--gradient-peach);
+  --color-orb-lavender: var(--gradient-lavender);
+  --color-orb-sky: var(--gradient-sky);
+  --color-orb-rose: var(--gradient-rose);
+
   --font-sans: var(--font-inter);
+  --font-display: var(--font-display);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--canvas);
+  color: var(--body);
   font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-feature-settings: "ss01";
+  letter-spacing: 0.16px;
 }
 
-/* Headings en blanc plus marqué */
-h1, h2, h3, h4, h5, h6 {
-  color: #ffffff;
-  font-weight: 500;
+/* Display = serif éditorial (EB Garamond comme substitut Waldenburg) */
+h1, h2, h3, h4, h5, h6,
+.display {
+  font-family: var(--font-display), "Times New Roman", serif;
+  font-weight: 300;
+  color: var(--ink);
+  letter-spacing: -0.32px;
 }
 
-/* Mode impression pour exports PDF (dashboard + timeline) */
+/* Hauteurs ajustées au design system */
+h1 { font-size: 48px; line-height: 1.08; letter-spacing: -0.96px; }
+h2 { font-size: 32px; line-height: 1.13; letter-spacing: -0.32px; }
+h3 { font-size: 24px; line-height: 1.2; letter-spacing: 0; }
+
+/* Inputs */
+input, textarea, select, button { font-family: inherit; }
+
+/* Mode impression pour exports PDF */
 @media print {
-  body {
-    background: white;
-    color: black;
-  }
-  .no-print {
-    display: none !important;
-  }
+  body { background: white; color: black; }
+  .no-print { display: none !important; }
 }
+
+/* Utilities éditoriales */
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--on-primary);
+  border-radius: 9999px;
+  padding: 10px 20px;
+  height: 40px;
+  font-size: 15px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.15s ease;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-inter);
+}
+.btn-primary:hover:not(:disabled) { background-color: var(--primary-active); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--ink);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 9999px;
+  padding: 9px 19px;
+  height: 40px;
+  font-size: 15px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  cursor: pointer;
+  font-family: var(--font-inter);
+}
+.btn-outline:hover:not(:disabled) { border-color: var(--ink); background-color: var(--hairline-soft); }
+.btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.card-feature {
+  background-color: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  padding: 24px;
+  transition: box-shadow 0.15s ease;
+}
+.card-feature:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.badge-pill {
+  background-color: var(--surface-strong);
+  color: var(--ink);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.96px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.input-base {
+  background-color: var(--surface-card);
+  color: var(--ink);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 8px;
+  padding: 12px 16px;
+  height: 44px;
+  font-size: 16px;
+  letter-spacing: 0.16px;
+  width: 100%;
+  transition: border-color 0.15s ease;
+}
+.input-base:focus { outline: none; border-color: var(--ink); border-width: 2px; padding: 11px 15px; }
+
+/* Atmospheric gradient orbs (décoratifs uniquement) */
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
+.orb-mint    { background: radial-gradient(circle, var(--gradient-mint), transparent 70%); }
+.orb-peach   { background: radial-gradient(circle, var(--gradient-peach), transparent 70%); }
+.orb-lavender{ background: radial-gradient(circle, var(--gradient-lavender), transparent 70%); }
+.orb-sky     { background: radial-gradient(circle, var(--gradient-sky), transparent 70%); }
+.orb-rose    { background: radial-gradient(circle, var(--gradient-rose), transparent 70%); }

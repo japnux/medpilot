@@ -24,12 +24,12 @@ export default function MarkerCard({ marker, records }: Props) {
   const color = status ? getStatusColor(status) : "#64748b";
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 space-y-3">
+    <div className="rounded-xl border border-hairline bg-surface-card p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-medium text-white">{marker.label}</h3>
+          <h3 className="text-sm font-medium text-ink">{marker.label}</h3>
           {marker.description && (
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-[11px] text-muted mt-0.5">
               {marker.description}
             </p>
           )}
@@ -50,16 +50,16 @@ export default function MarkerCard({ marker, records }: Props) {
 
       {last ? (
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-semibold text-white">
+          <span className="text-2xl font-semibold text-ink">
             {last.value}
           </span>
-          <span className="text-xs text-slate-500">{marker.unit}</span>
-          <span className="ml-auto text-[11px] text-slate-500">
+          <span className="text-xs text-muted">{marker.unit}</span>
+          <span className="ml-auto text-[11px] text-muted">
             {formatDateShort(last.recorded_at)}
           </span>
         </div>
       ) : (
-        <p className="text-xs text-slate-500 italic">Aucune mesure</p>
+        <p className="text-xs text-muted italic">Aucune mesure</p>
       )}
 
       {records.length >= 2 && (

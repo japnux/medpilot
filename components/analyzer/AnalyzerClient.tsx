@@ -17,6 +17,7 @@ interface Props {
     document_date: string | null;
     document_type: string;
     created_at: string;
+    doctor_name: string | null;
   }>;
 }
 
@@ -149,6 +150,7 @@ export default function AnalyzerClient({ familyId, history }: Props) {
           raw_text: text || (pdfInfo?.base64
             ? `[PDF scanné — ${pdfInfo.name}, ${pdfInfo.pages} pages — analysé directement par Claude vision]`
             : ""),
+          doctor_name: result.doctor_name ?? null,
           analysis_summary: JSON.parse(JSON.stringify(result)),
         })
         .select("id")
@@ -178,23 +180,23 @@ export default function AnalyzerClient({ familyId, history }: Props) {
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold text-white">Analyser un document</h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <h1 className="text-2xl font-semibold text-ink">Analyser un document</h1>
+        <p className="text-sm text-muted mt-1">
           Glissez un PDF ou collez le texte. L&apos;analyse contextualise par
           rapport au profil du patient.
         </p>
       </div>
 
       {/* Dropzone + textarea */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 space-y-3">
+      <div className="rounded-xl border border-hairline bg-surface-card p-4 space-y-3">
         <label
           htmlFor="pdf-input"
           className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
             parsingPdf
-              ? "border-indigo-500 bg-indigo-500/5"
+              ? "border-ink bg-canvas-soft"
               : pdfInfo
-                ? "border-emerald-700/40 bg-emerald-900/10"
-                : "border-slate-700 hover:border-slate-600"
+                ? "border-success/30 bg-success/5"
+                : "border-hairline-strong hover:border-hairline-strong"
           }`}
           onDragOver={(e) => {
             e.preventDefault();
@@ -205,18 +207,18 @@ export default function AnalyzerClient({ familyId, history }: Props) {
             if (f && f.type === "application/pdf") handlePdf(f);
           }}
         >
-          <Upload className="w-6 h-6 text-slate-500 mx-auto mb-2" />
+          <Upload className="w-6 h-6 text-muted mx-auto mb-2" />
           {parsingPdf ? (
-            <p className="text-sm text-indigo-300 flex items-center justify-center gap-2">
+            <p className="text-sm text-ink flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />
               Lecture du PDF en cours...
             </p>
           ) : pdfInfo ? (
             <>
-              <p className="text-sm text-emerald-300">
+              <p className="text-sm text-success">
                 ✓ {pdfInfo.name}
               </p>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-muted mt-1">
                 {pdfInfo.pages} page{pdfInfo.pages > 1 ? "s" : ""}
                 {pdfInfo.base64
                   ? " · PDF scanné → sera lu directement par Claude (vision)"
@@ -226,10 +228,10 @@ export default function AnalyzerClient({ familyId, history }: Props) {
             </>
           ) : (
             <>
-              <p className="text-sm text-slate-300">
+              <p className="text-sm text-body">
                 Cliquez pour choisir un PDF ou glissez-déposez ici
               </p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-muted mt-1">
                 Si l&apos;extraction échoue (PDF scanné), collez le texte ci-dessous.
               </p>
             </>
@@ -249,43 +251,35 @@ export default function AnalyzerClient({ familyId, history }: Props) {
           />
         </label>
 
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Ou collez ici le texte du document médical à analyser..."
-          rows={10}
-          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-sm text-white focus:border-indigo-500 focus:outline-none font-mono"
-        />
-
         <div className="flex justify-between items-center">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted">
             {pdfInfo?.base64
               ? `PDF (${pdfInfo.pages} p.) · analyse via Claude Opus 4.7 (vision)`
-              : `${text.length} caractères · analyse via Claude Opus 4.7`}
+              : pdfInfo
+                ? `${pdfInfo.chars.toLocaleString()} caractères extraits · Claude Opus 4.7`
+                : "Choisissez un PDF pour démarrer"}
           </p>
           <button
             onClick={analyze}
-            disabled={
-              analyzing || (text.trim().length < 20 && !pdfInfo?.base64)
-            }
-            className="flex items-center gap-2 h-10 px-5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm font-medium text-white"
+            disabled={analyzing || !pdfInfo}
+            className="flex items-center gap-2 h-10 px-5 rounded-lg bg-primary hover:bg-primary-active disabled:opacity-40 text-sm font-medium text-on-primary"
           >
             {analyzing && <Loader2 className="w-4 h-4 animate-spin" />}
             {analyzing ? "Analyse en cours…" : "Analyser"}
           </button>
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-error">{error}</p>}
       </div>
 
       {analyzing && (
-        <div className="rounded-xl border border-indigo-700/40 bg-indigo-900/10 p-6 flex items-center gap-4">
-          <Loader2 className="w-6 h-6 text-indigo-400 animate-spin shrink-0" />
+        <div className="rounded-xl border border-hairline-strong bg-canvas-soft p-6 flex items-center gap-4">
+          <Loader2 className="w-6 h-6 text-ink animate-spin shrink-0" />
           <div>
-            <p className="text-sm font-medium text-indigo-200">
+            <p className="text-sm font-medium text-ink">
               Claude Opus 4.7 analyse le document...
             </p>
-            <p className="text-xs text-indigo-300/70 mt-0.5">
+            <p className="text-xs text-ink/70 mt-0.5">
               {pdfInfo?.base64
                 ? "Lecture en vision d'un PDF scanné — peut prendre 30 à 60 secondes."
                 : "Analyse en cours — quelques secondes."}
@@ -301,7 +295,7 @@ export default function AnalyzerClient({ familyId, history }: Props) {
             <button
               onClick={save}
               disabled={saving || saved}
-              className="flex items-center gap-2 h-10 px-5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-sm font-medium text-white"
+              className="flex items-center gap-2 h-10 px-5 rounded-lg bg-success hover:bg-success disabled:opacity-40 text-sm font-medium text-on-primary"
             >
               <Save className="w-4 h-4" />
               {saved ? "Enregistré" : saving ? "Enregistrement…" : "Sauvegarder dans le dossier"}
@@ -312,28 +306,44 @@ export default function AnalyzerClient({ familyId, history }: Props) {
 
       {/* Historique */}
       <section className="space-y-2">
-        <h2 className="text-sm font-medium text-white">
+        <h2 className="text-sm font-medium text-ink">
           Historique ({history.length})
         </h2>
         {history.length === 0 ? (
-          <p className="text-xs text-slate-500 italic">Aucun document analysé pour le moment.</p>
+          <p className="text-xs text-muted italic">Aucun document analysé pour le moment.</p>
         ) : (
-          <ul className="divide-y divide-slate-800 rounded-xl border border-slate-800 bg-slate-900/40">
+          <ul className="space-y-2">
             {history.map((d) => (
               <li key={d.id}>
                 <Link
                   href={`/documents/${d.id}`}
-                  className="px-4 py-3 flex items-center gap-3 hover:bg-slate-900/70 transition-colors"
+                  className="block rounded-xl border border-hairline bg-surface-card hover:bg-surface-strong p-4 transition-colors"
                 >
-                  <FileText className="w-4 h-4 text-slate-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{d.title}</p>
-                    <p className="text-xs text-slate-500">
-                      {d.document_type} ·{" "}
-                      {d.document_date ? formatDateShort(d.document_date) : "date inconnue"}
-                    </p>
+                  <div className="flex items-start gap-3">
+                    <FileText className="w-4 h-4 text-orange-700 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <p className="text-sm text-ink">{d.title}</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {/* Pill date */}
+                        <span className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider bg-surface-strong text-body border border-hairline-strong">
+                          {d.document_date
+                            ? formatDateShort(d.document_date)
+                            : "Date inconnue"}
+                        </span>
+                        {/* Pill type */}
+                        <span className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider bg-surface-strong text-body border border-hairline-strong">
+                          {d.document_type}
+                        </span>
+                        {/* Pill médecin (si disponible) */}
+                        {d.doctor_name && (
+                          <span className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider bg-surface-strong text-ink border border-ink">
+                            {d.doctor_name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-soft shrink-0 mt-1" />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
                 </Link>
               </li>
             ))}

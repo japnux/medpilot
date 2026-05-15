@@ -154,17 +154,17 @@ export default function SettingsClient({
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <h1 className="text-2xl font-semibold text-white">Paramètres</h1>
+      <h1 className="text-2xl font-semibold text-ink">Paramètres</h1>
 
-      <nav className="flex gap-1 border-b border-slate-800">
+      <nav className="flex gap-1 border-b border-hairline">
         {(["profile", "team", "members"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-3 py-2 text-sm border-b-2 ${
               tab === t
-                ? "border-indigo-500 text-white"
-                : "border-transparent text-slate-400 hover:text-white"
+                ? "border-ink text-ink"
+                : "border-transparent text-muted hover:text-ink"
             }`}
           >
             {t === "profile" ? "Profil cancer" : t === "team" ? "Équipe médicale" : "Membres famille"}
@@ -173,26 +173,26 @@ export default function SettingsClient({
       </nav>
 
       {status && (
-        <p className="text-xs text-emerald-400">{status}</p>
+        <p className="text-xs text-success">{status}</p>
       )}
       {error && (
-        <p className="text-xs text-red-400">{error}</p>
+        <p className="text-xs text-error">{error}</p>
       )}
 
       {tab === "profile" && (
-        <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
+        <section className="rounded-xl border border-hairline bg-surface-card p-5 space-y-4">
           {!isAdmin && (
-            <p className="text-xs text-amber-400">
+            <p className="text-xs text-warning">
               Seul l&apos;administrateur peut modifier le profil cancer.
             </p>
           )}
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs space-y-1">
-              <span className="text-slate-400">Type de cancer</span>
+              <span className="text-muted">Type de cancer</span>
               <select
                 disabled
                 value={profile?.cancer_type ?? "custom"}
-                className="w-full h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white opacity-60"
+                className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink opacity-60"
               >
                 {CANCER_PROFILE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -202,50 +202,50 @@ export default function SettingsClient({
               </select>
             </label>
             <label className="text-xs space-y-1">
-              <span className="text-slate-400">Libellé affiché</span>
+              <span className="text-muted">Libellé affiché</span>
               <input
                 disabled={!isAdmin}
                 value={cancerLabel}
                 onChange={(e) => setCancerLabel(e.target.value)}
-                className="w-full h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
               />
             </label>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs space-y-1">
-              <span className="text-slate-400">Prénom patient</span>
+              <span className="text-muted">Prénom patient</span>
               <input
                 disabled={!isAdmin}
                 value={patientName}
                 onChange={(e) => setPatientName(e.target.value)}
-                className="w-full h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
               />
             </label>
             <label className="text-xs space-y-1">
-              <span className="text-slate-400">Stade</span>
+              <span className="text-muted">Stade</span>
               <input
                 disabled={!isAdmin}
                 value={stage}
                 onChange={(e) => setStage(e.target.value)}
-                className="w-full h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
               />
             </label>
           </div>
           <label className="text-xs space-y-1 block">
-            <span className="text-slate-400">Date diagnostic</span>
+            <span className="text-muted">Date diagnostic</span>
             <input
               type="date"
               disabled={!isAdmin}
               value={diagnosisDate ?? ""}
               onChange={(e) => setDiagnosisDate(e.target.value)}
-              className="w-full md:w-1/2 h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+              className="w-full md:w-1/2 h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
             />
           </label>
           {isAdmin && (
             <button
               onClick={saveProfile}
               disabled={saving}
-              className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm text-white"
+              className="h-9 px-4 rounded-lg bg-primary hover:bg-primary-active disabled:opacity-40 text-sm text-on-primary"
             >
               {saving ? "..." : "Enregistrer"}
             </button>
@@ -254,22 +254,22 @@ export default function SettingsClient({
       )}
 
       {tab === "team" && (
-        <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-3">
+        <section className="rounded-xl border border-hairline bg-surface-card p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-white">Équipe médicale</h2>
+            <h2 className="text-sm font-medium text-ink">Équipe médicale</h2>
             {isAdmin && (
               <button
                 onClick={() =>
                   setTeam([...team, { name: "", specialty: "", hospital: "" }])
                 }
-                className="text-xs text-indigo-400"
+                className="text-xs text-ink"
               >
                 + Ajouter
               </button>
             )}
           </div>
           {team.length === 0 && (
-            <p className="text-xs text-slate-500 italic">Aucun médecin enregistré.</p>
+            <p className="text-xs text-muted italic">Aucun médecin enregistré.</p>
           )}
           {team.map((m, i) => (
             <div key={i} className="grid grid-cols-7 gap-2">
@@ -282,7 +282,7 @@ export default function SettingsClient({
                   n[i] = { ...n[i], name: e.target.value };
                   setTeam(n);
                 }}
-                className="col-span-2 h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                className="col-span-2 h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
               />
               <input
                 placeholder="Spécialité"
@@ -293,7 +293,7 @@ export default function SettingsClient({
                   n[i] = { ...n[i], specialty: e.target.value };
                   setTeam(n);
                 }}
-                className="col-span-2 h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                className="col-span-2 h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
               />
               <input
                 placeholder="Hôpital"
@@ -304,12 +304,12 @@ export default function SettingsClient({
                   n[i] = { ...n[i], hospital: e.target.value };
                   setTeam(n);
                 }}
-                className="col-span-2 h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                className="col-span-2 h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
               />
               {isAdmin && (
                 <button
                   onClick={() => setTeam(team.filter((_, idx) => idx !== i))}
-                  className="col-span-1 h-9 rounded border border-slate-700 text-xs text-slate-400 hover:text-red-400"
+                  className="col-span-1 h-9 rounded border border-hairline-strong text-xs text-muted hover:text-error"
                 >
                   ✕
                 </button>
@@ -320,7 +320,7 @@ export default function SettingsClient({
             <button
               onClick={saveTeam}
               disabled={saving}
-              className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm text-white"
+              className="h-9 px-4 rounded-lg bg-primary hover:bg-primary-active disabled:opacity-40 text-sm text-on-primary"
             >
               {saving ? "..." : "Enregistrer"}
             </button>
@@ -330,14 +330,14 @@ export default function SettingsClient({
 
       {tab === "members" && (
         <section className="space-y-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-2">
-            <h2 className="text-sm font-medium text-white">Membres</h2>
-            <ul className="divide-y divide-slate-800">
+          <div className="rounded-xl border border-hairline bg-surface-card p-5 space-y-2">
+            <h2 className="text-sm font-medium text-ink">Membres</h2>
+            <ul className="divide-y divide-hairline">
               {members.map((m) => (
                 <li key={m.id} className="py-2.5 flex items-center gap-3">
                   <div className="flex-1">
-                    <p className="text-sm text-white">{m.display_name}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm text-ink">{m.display_name}</p>
+                    <p className="text-xs text-muted">
                       {m.role}
                       {m.relation && ` · ${m.relation}`}
                       {m.user_id === currentUserId && " · vous"}
@@ -346,7 +346,7 @@ export default function SettingsClient({
                   {isAdmin && m.user_id !== currentUserId && (
                     <button
                       onClick={() => removeMember(m.id)}
-                      className="text-xs text-slate-500 hover:text-red-400 p-1"
+                      className="text-xs text-muted hover:text-error p-1"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -357,8 +357,8 @@ export default function SettingsClient({
           </div>
 
           {isAdmin && (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-3">
-              <h2 className="text-sm font-medium text-white flex items-center gap-2">
+            <div className="rounded-xl border border-hairline bg-surface-card p-5 space-y-3">
+              <h2 className="text-sm font-medium text-ink flex items-center gap-2">
                 <UserPlus className="w-4 h-4" />
                 Inviter un proche
               </h2>
@@ -368,20 +368,20 @@ export default function SettingsClient({
                   placeholder="email@exemple.com"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                  className="h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
                 />
                 <input
                   placeholder="Prénom affiché"
                   value={inviteName}
                   onChange={(e) => setInviteName(e.target.value)}
-                  className="h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                  className="h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
                 />
                 <select
                   value={inviteRole}
                   onChange={(e) =>
                     setInviteRole(e.target.value as "patient" | "accompagnant")
                   }
-                  className="h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                  className="h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
                 >
                   <option value="accompagnant">Accompagnant</option>
                   <option value="patient">Patient</option>
@@ -390,13 +390,13 @@ export default function SettingsClient({
                   placeholder="Lien (conjoint, fils...)"
                   value={inviteRelation}
                   onChange={(e) => setInviteRelation(e.target.value)}
-                  className="h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                  className="h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
                 />
               </div>
               <button
                 onClick={sendInvite}
                 disabled={saving}
-                className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm text-white"
+                className="h-9 px-4 rounded-lg bg-primary hover:bg-primary-active disabled:opacity-40 text-sm text-on-primary"
               >
                 {saving ? "..." : "Envoyer l'invitation"}
               </button>

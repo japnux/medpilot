@@ -110,33 +110,33 @@ export default function ConsultationClient({ familyId, upcoming }: Props) {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-white">Préparer une consultation</h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <h1 className="text-2xl font-semibold text-ink">Préparer une consultation</h1>
+        <p className="text-sm text-muted mt-1">
           Claude Haiku génère des questions adaptées au contexte du patient.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Formulaire gauche */}
-        <div className="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-4 h-fit">
-          <h2 className="text-sm font-medium text-white">Informations du RDV</h2>
+        <div className="lg:col-span-2 rounded-xl border border-hairline bg-surface-card p-5 space-y-4 h-fit">
+          <h2 className="text-sm font-medium text-ink">Informations du RDV</h2>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs space-y-1">
-              <span className="text-slate-400">Date</span>
+              <span className="text-muted">Date</span>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
               />
             </label>
             <label className="text-xs space-y-1">
-              <span className="text-slate-400">Type</span>
+              <span className="text-muted">Type</span>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as ConsultType)}
-                className="w-full h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+                className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
               >
                 {CONSULT_TYPES.map(([v, l]) => (
                   <option key={v} value={v}>
@@ -148,90 +148,90 @@ export default function ConsultationClient({ familyId, upcoming }: Props) {
           </div>
 
           <label className="text-xs space-y-1 block">
-            <span className="text-slate-400">Médecin</span>
+            <span className="text-muted">Médecin</span>
             <input
               value={doctor}
               onChange={(e) => setDoctor(e.target.value)}
               placeholder="ex : Dr Dupont"
-              className="w-full h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+              className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
             />
           </label>
 
           <label className="text-xs space-y-1 block">
-            <span className="text-slate-400">Hôpital / centre</span>
+            <span className="text-muted">Hôpital / centre</span>
             <input
               value={hospital}
               onChange={(e) => setHospital(e.target.value)}
-              className="w-full h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+              className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
             />
           </label>
 
           <label className="text-xs space-y-1 block">
-            <span className="text-slate-400">Points en suspens (optionnel)</span>
+            <span className="text-muted">Points en suspens (optionnel)</span>
             <textarea
               value={openPoints}
               onChange={(e) => setOpenPoints(e.target.value)}
               rows={3}
               placeholder="ex : résultats de la mitotanémie à interpréter, question sur l'effet secondaire X..."
-              className="w-full px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+              className="w-full px-2 py-1.5 rounded bg-canvas border border-hairline-strong text-sm text-ink"
             />
           </label>
 
           <label className="text-xs space-y-1 block">
-            <span className="text-slate-400">Contexte traitement (optionnel)</span>
+            <span className="text-muted">Contexte traitement (optionnel)</span>
             <input
               value={treatmentContext}
               onChange={(e) => setTreatmentContext(e.target.value)}
               placeholder="ex : 8 mois sous mitotane"
-              className="w-full h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+              className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
             />
           </label>
 
           <button
             onClick={prepare}
             disabled={preparing}
-            className="w-full flex items-center justify-center gap-2 h-10 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm font-medium text-white"
+            className="w-full flex items-center justify-center gap-2 h-10 rounded-lg bg-primary hover:bg-primary-active disabled:opacity-40 text-sm font-medium text-on-primary"
           >
             <Sparkles className="w-4 h-4" />
             {preparing ? "Génération..." : "Préparer avec Claude"}
           </button>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-error">{error}</p>}
         </div>
 
         {/* Résultat droite */}
         <div className="lg:col-span-3 space-y-4">
           {prep ? (
             <>
-              <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
-                <p className="text-sm text-slate-200 italic">{prep.consultation_summary}</p>
+              <div className="rounded-xl border border-hairline bg-surface-card p-5 space-y-4">
+                <p className="text-sm text-body-strong italic">{prep.consultation_summary}</p>
 
                 <section>
-                  <h3 className="text-sm font-medium text-white mb-2">
+                  <h3 className="text-sm font-medium text-ink mb-2">
                     Questions ({prep.questions.length})
                   </h3>
                   <ul className="space-y-2">
                     {prep.questions.map((q, i) => (
                       <li
                         key={i}
-                        className="rounded border border-slate-800 bg-slate-950/30 p-3 space-y-1"
+                        className="rounded border border-hairline bg-canvas-soft p-3 space-y-1"
                       >
                         <div className="flex gap-2 text-[10px] uppercase">
-                          <span className="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+                          <span className="px-1.5 py-0.5 rounded bg-surface-strong text-body">
                             {q.theme}
                           </span>
                           <span
                             className={`px-1.5 py-0.5 rounded ${
                               q.priority === "high"
-                                ? "bg-red-500/20 text-red-300"
-                                : "bg-slate-700 text-slate-300"
+                                ? "bg-error/10 text-error"
+                                : "bg-surface-strong text-body"
                             }`}
                           >
                             {q.priority === "high" ? "Prioritaire" : "Normale"}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-100">{q.question}</p>
-                        <p className="text-xs text-slate-500 italic">{q.context}</p>
+                        <p className="text-sm text-ink">{q.question}</p>
+                        <p className="text-xs text-muted italic">{q.context}</p>
                       </li>
                     ))}
                   </ul>
@@ -252,16 +252,16 @@ export default function ConsultationClient({ familyId, upcoming }: Props) {
                 <button
                   onClick={save}
                   disabled={saving}
-                  className="h-10 px-5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-sm font-medium text-white"
+                  className="h-10 px-5 rounded-lg bg-success hover:bg-success disabled:opacity-40 text-sm font-medium text-on-primary"
                 >
                   {saving ? "Enregistrement..." : "Enregistrer la consultation"}
                 </button>
               </div>
             </>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-800 bg-slate-900/20 p-8 text-center">
-              <Sparkles className="w-8 h-8 text-slate-600 mx-auto mb-3" />
-              <p className="text-sm text-slate-400">
+            <div className="rounded-xl border border-dashed border-hairline bg-canvas-soft p-8 text-center">
+              <Sparkles className="w-8 h-8 text-muted-soft mx-auto mb-3" />
+              <p className="text-sm text-muted">
                 Remplissez les infos à gauche puis cliquez sur «&nbsp;Préparer&nbsp;».
               </p>
             </div>
@@ -269,20 +269,20 @@ export default function ConsultationClient({ familyId, upcoming }: Props) {
 
           {/* Liste des consultations à venir */}
           {upcoming.length > 0 && (
-            <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-2">
-              <h3 className="text-sm font-medium text-white">Consultations à venir</h3>
-              <ul className="divide-y divide-slate-800">
+            <section className="rounded-xl border border-hairline bg-surface-card p-5 space-y-2">
+              <h3 className="text-sm font-medium text-ink">Consultations à venir</h3>
+              <ul className="divide-y divide-hairline">
                 {upcoming.map((c) => (
                   <li key={c.id}>
                     <Link
                       href={`/consultation/${c.id}`}
-                      className="flex items-center gap-3 py-2.5 hover:bg-slate-950/40 rounded px-2"
+                      className="flex items-center gap-3 py-2.5 hover:bg-canvas-soft rounded px-2"
                     >
-                      <Calendar className="w-4 h-4 text-slate-500" />
-                      <span className="text-sm text-white">
+                      <Calendar className="w-4 h-4 text-muted" />
+                      <span className="text-sm text-ink">
                         {formatDateFr(c.consultation_date)}
                       </span>
-                      <span className="text-xs text-slate-400 ml-auto">
+                      <span className="text-xs text-muted ml-auto">
                         {c.consultation_type} {c.doctor_name && `· ${c.doctor_name}`}
                       </span>
                     </Link>
@@ -300,8 +300,8 @@ export default function ConsultationClient({ familyId, upcoming }: Props) {
 function Section({ title, items }: { title: string; items: string[] }) {
   return (
     <section>
-      <h4 className="text-sm font-medium text-white mb-1.5">{title}</h4>
-      <ul className="space-y-1 text-xs text-slate-300">
+      <h4 className="text-sm font-medium text-ink mb-1.5">{title}</h4>
+      <ul className="space-y-1 text-xs text-body">
         {items.map((it, i) => (
           <li key={i}>• {it}</li>
         ))}

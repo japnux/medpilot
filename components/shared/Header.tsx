@@ -20,29 +20,29 @@ export default function Header({
   lastUpdate,
 }: Props) {
   return (
-    <header className="border-b border-slate-800 bg-slate-950/40 px-6 py-3">
+    <header className="border-b border-hairline bg-canvas-soft px-6 py-3">
       <div className="flex items-center gap-3 flex-wrap text-sm">
-        <span className="font-medium text-white">
+        <span className="font-medium text-ink">
           {patientName ?? "Patient"}
         </span>
-        <span className="text-slate-600">·</span>
-        <span className="text-slate-300">{cancerLabel}</span>
+        <span className="text-muted-soft">·</span>
+        <span className="text-body">{cancerLabel}</span>
         {stage && (
           <>
-            <span className="text-slate-600">·</span>
-            <span className="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300">
+            <span className="text-muted-soft">·</span>
+            <span className="px-2 py-0.5 rounded text-xs bg-surface-strong text-body">
               {stage}
             </span>
           </>
         )}
         {activeTreatments.length > 0 && (
           <>
-            <span className="text-slate-600">·</span>
+            <span className="text-muted-soft">·</span>
             <div className="flex gap-1.5 flex-wrap">
               {activeTreatments.map((t) => (
                 <span
                   key={t}
-                  className="px-2 py-0.5 rounded text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
+                  className="px-2 py-0.5 rounded text-xs bg-surface-strong text-ink border border-hairline-strong"
                 >
                   {t}
                 </span>
@@ -50,7 +50,7 @@ export default function Header({
             </div>
           </>
         )}
-        <span className="ml-auto text-xs text-slate-500">
+        <span className="ml-auto text-xs text-muted">
           Maj : {formatDateFr(lastUpdate)}
         </span>
       </div>

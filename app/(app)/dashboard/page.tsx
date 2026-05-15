@@ -84,11 +84,11 @@ export default async function DashboardPage() {
       )}
 
       {markerEntries.length === 0 ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-8 text-center">
-          <p className="text-slate-400 text-sm">
+        <div className="rounded-xl border border-hairline bg-surface-card p-8 text-center">
+          <p className="text-muted text-sm">
             Aucun marqueur configuré pour ce profil cancer.
           </p>
-          <p className="text-slate-500 text-xs mt-1">
+          <p className="text-muted text-xs mt-1">
             Allez dans Paramètres pour personnaliser les marqueurs à suivre.
           </p>
         </div>

@@ -24,7 +24,7 @@ export default async function AnalyzerPage() {
 
   const { data: history } = await supabase
     .from("medical_documents")
-    .select("id, title, document_date, document_type, created_at")
+    .select("id, title, document_date, document_type, created_at, doctor_name")
     .eq("family_id", membership.family_id)
     .order("created_at", { ascending: false })
     .limit(30);

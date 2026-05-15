@@ -57,14 +57,14 @@ export default function LoginPage() {
     <div className="flex flex-col flex-1 items-center justify-center px-6">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-semibold text-white">Connexion</h1>
-          <p className="text-slate-400 text-sm">
+          <h1 className="text-3xl font-semibold text-ink">Connexion</h1>
+          <p className="text-muted text-sm">
             Accédez à votre dossier familial MedPilot.
           </p>
         </div>
 
         {status === "sent" ? (
-          <div className="rounded-lg border border-emerald-700/40 bg-emerald-900/20 p-4 text-center text-sm text-emerald-300">
+          <div className="rounded-lg border border-success/30 bg-canvas-soft p-4 text-center text-sm text-success">
             Lien envoyé à <span className="font-medium">{email}</span>.
             Vérifiez votre boîte mail.
           </div>
@@ -72,7 +72,7 @@ export default function LoginPage() {
           <>
             {/* Magic link */}
             <form onSubmit={handleMagicLink} className="space-y-3">
-              <label className="block text-sm text-slate-300">
+              <label className="block text-sm text-body">
                 Adresse email
                 <input
                   type="email"
@@ -80,29 +80,29 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="vous@exemple.com"
-                  className="mt-1 w-full h-11 px-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full h-11 px-3 rounded-lg bg-surface-card border border-hairline-strong text-ink focus:border-ink focus:outline-none"
                 />
               </label>
               <button
                 type="submit"
                 disabled={status === "loading"}
-                className="w-full h-11 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium transition-colors"
+                className="w-full h-11 rounded-lg bg-primary hover:bg-primary-active disabled:opacity-50 text-on-primary font-medium transition-colors"
               >
                 {status === "loading" ? "..." : "Recevoir un lien magique"}
               </button>
             </form>
 
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-slate-800"></div>
-              <span className="text-xs text-slate-500">ou</span>
-              <div className="flex-1 h-px bg-slate-800"></div>
+              <div className="flex-1 h-px bg-surface-strong"></div>
+              <span className="text-xs text-muted">ou</span>
+              <div className="flex-1 h-px bg-surface-strong"></div>
             </div>
 
             {/* OAuth Google */}
             <button
               onClick={handleGoogle}
               disabled={status === "loading"}
-              className="w-full h-11 rounded-lg border border-slate-700 hover:border-slate-600 hover:bg-slate-900 disabled:opacity-50 text-slate-200 font-medium transition-colors flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-lg border border-hairline-strong hover:border-hairline-strong hover:bg-surface-card disabled:opacity-50 text-body-strong font-medium transition-colors flex items-center justify-center gap-2"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
                 <path
@@ -126,7 +126,7 @@ export default function LoginPage() {
             </button>
 
             {error && (
-              <p className="text-sm text-red-400 text-center">{error}</p>
+              <p className="text-sm text-error text-center">{error}</p>
             )}
           </>
         )}

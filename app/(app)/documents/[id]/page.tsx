@@ -39,20 +39,20 @@ export default async function DocumentDetailPage({ params }: PageProps) {
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <Link
         href="/timeline"
-        className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white"
+        className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-ink"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> Retour
       </Link>
 
       <header className="space-y-2">
         <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-orange-400" />
-          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+          <FileText className="w-5 h-5 text-orange-700" />
+          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-strong text-body">
             {doc.document_type}
           </span>
         </div>
-        <h1 className="text-2xl font-semibold text-white">{doc.title}</h1>
-        <p className="text-sm text-slate-400">
+        <h1 className="text-2xl font-semibold text-ink">{doc.title}</h1>
+        <p className="text-sm text-muted">
           {doc.document_date
             ? `Document daté du ${formatDateFr(doc.document_date)}`
             : "Date du document inconnue"}
@@ -63,22 +63,22 @@ export default async function DocumentDetailPage({ params }: PageProps) {
       {analysis ? (
         <AnalysisTabs result={analysis} />
       ) : (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-center">
-          <p className="text-sm text-slate-400">
+        <div className="rounded-xl border border-hairline bg-surface-card p-6 text-center">
+          <p className="text-sm text-muted">
             Aucune analyse Claude disponible pour ce document.
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-muted mt-1">
             Ce document a peut-être été créé avant la fonctionnalité d&apos;analyse.
           </p>
         </div>
       )}
 
       {doc.raw_text && (
-        <details className="rounded-xl border border-slate-800 bg-slate-900/20 p-4">
-          <summary className="cursor-pointer text-sm text-slate-400 hover:text-white">
+        <details className="rounded-xl border border-hairline bg-canvas-soft p-4">
+          <summary className="cursor-pointer text-sm text-muted hover:text-ink">
             Voir le texte source du document
           </summary>
-          <pre className="mt-3 text-xs text-slate-300 whitespace-pre-wrap font-mono max-h-96 overflow-auto">
+          <pre className="mt-3 text-xs text-body whitespace-pre-wrap font-mono max-h-96 overflow-auto">
             {doc.raw_text}
           </pre>
         </details>

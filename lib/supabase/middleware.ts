@@ -71,10 +71,10 @@ export async function updateSession(request: NextRequest) {
     const isOnboardingPath = path.startsWith("/onboarding");
     const isLoginPath = path.startsWith("/login");
 
-    // 2a. Onboardé + sur login/onboarding/root → dashboard
+    // 2a. Onboardé + sur login/onboarding/root → timeline (landing par défaut)
     if (onboarded && (isLoginPath || isOnboardingPath || path === "/")) {
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      url.pathname = "/timeline";
       return NextResponse.redirect(url);
     }
 

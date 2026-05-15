@@ -67,23 +67,23 @@ export default function QuickEntryForm({ familyId, markers }: Props) {
   return (
     <form
       onSubmit={submit}
-      className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 space-y-4"
+      className="rounded-xl border border-hairline bg-surface-card p-4 space-y-4"
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-white">Saisie rapide d&apos;un bilan</h2>
+        <h2 className="text-sm font-medium text-ink">Saisie rapide d&apos;un bilan</h2>
         <input
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white"
+          className="h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink"
         />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {markerEntries.map(([key, m]) => (
           <label key={key} className="text-xs space-y-1">
-            <span className="text-slate-400">
-              {m.label} <span className="text-slate-600">({m.unit})</span>
+            <span className="text-muted">
+              {m.label} <span className="text-muted-soft">({m.unit})</span>
             </span>
             <input
               type="number"
@@ -93,21 +93,21 @@ export default function QuickEntryForm({ familyId, markers }: Props) {
                 setValues({ ...values, [key]: e.target.value })
               }
               placeholder="—"
-              className="w-full h-9 px-2 rounded bg-slate-950 border border-slate-700 text-sm text-white focus:border-indigo-500 focus:outline-none"
+              className="w-full h-9 px-2 rounded bg-canvas border border-hairline-strong text-sm text-ink focus:border-ink focus:outline-none"
             />
           </label>
         ))}
       </div>
 
       {error && (
-        <p className="text-xs text-red-400">{error}</p>
+        <p className="text-xs text-error">{error}</p>
       )}
 
       <div className="flex justify-end">
         <button
           type="submit"
           disabled={submitting}
-          className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm font-medium text-white"
+          className="h-9 px-4 rounded-lg bg-primary hover:bg-primary-active disabled:opacity-40 text-sm font-medium text-on-primary"
         >
           {submitting ? "Enregistrement..." : "Enregistrer le bilan"}
         </button>

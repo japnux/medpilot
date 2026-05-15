@@ -194,12 +194,12 @@ export default function OnboardingPage() {
             <div key={n} className="flex-1">
               <div
                 className={`h-1 rounded-full ${
-                  step >= n ? "bg-indigo-500" : "bg-slate-800"
+                  step >= n ? "bg-primary" : "bg-surface-strong"
                 }`}
               />
               <p
                 className={`mt-2 text-xs ${
-                  step >= n ? "text-slate-300" : "text-slate-600"
+                  step >= n ? "text-body" : "text-muted-soft"
                 }`}
               >
                 Étape {n}/4
@@ -208,7 +208,7 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-8">
+        <div className="rounded-2xl border border-hairline bg-surface-card p-8">
           {step === 1 && (
             <Step1Family state={state} update={update} onNext={() => setStep(2)} />
           )}
@@ -239,7 +239,7 @@ export default function OnboardingPage() {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-700/40 bg-red-900/20 p-3 text-sm text-red-300">
+          <div className="rounded-lg border border-error/30 bg-canvas-soft p-3 text-sm text-error">
             {error}
           </div>
         )}

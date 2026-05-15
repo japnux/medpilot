@@ -34,11 +34,11 @@ export default function AnalysisTabs({ result }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 overflow-hidden">
-      <header className="border-b border-slate-800 px-4 pt-4">
-        <h2 className="text-base font-medium text-white">{result.title}</h2>
+    <div className="rounded-xl border border-hairline bg-surface-card overflow-hidden">
+      <header className="border-b border-hairline px-4 pt-4">
+        <h2 className="text-base font-medium text-ink">{result.title}</h2>
         {result.document_date && (
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-muted mt-1">
             Daté du {result.document_date}
           </p>
         )}
@@ -49,8 +49,8 @@ export default function AnalysisTabs({ result }: Props) {
               onClick={() => setTab(t.key)}
               className={`px-3 py-2 text-sm border-b-2 transition-colors ${
                 tab === t.key
-                  ? "border-indigo-500 text-white"
-                  : "border-transparent text-slate-400 hover:text-white"
+                  ? "border-ink text-ink"
+                  : "border-transparent text-muted hover:text-ink"
               }`}
             >
               {t.label}
@@ -62,13 +62,13 @@ export default function AnalysisTabs({ result }: Props) {
       <div className="p-5">
         {tab === "family" && (
           <div className="space-y-3">
-            <p className="text-lg text-white leading-relaxed">
+            <p className="text-lg text-ink leading-relaxed">
               {result.summary_family}
             </p>
             {result.action_required && result.action_details && (
-              <div className="mt-4 rounded-lg border border-red-700/40 bg-red-900/20 p-3 flex gap-2 items-start">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                <p className="text-sm text-red-300">{result.action_details}</p>
+              <div className="mt-4 rounded-lg border border-error/30 bg-canvas-soft p-3 flex gap-2 items-start">
+                <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" />
+                <p className="text-sm text-error">{result.action_details}</p>
               </div>
             )}
           </div>
@@ -76,14 +76,14 @@ export default function AnalysisTabs({ result }: Props) {
 
         {tab === "clinical" && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+            <p className="text-sm text-body-strong leading-relaxed whitespace-pre-wrap">
               {result.summary_clinical}
             </p>
             {result.key_values.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-left text-slate-500">
+                    <tr className="text-left text-muted">
                       <th className="py-2 pr-2">Paramètre</th>
                       <th className="py-2 pr-2">Valeur</th>
                       <th className="py-2 pr-2">Référence</th>
@@ -92,13 +92,13 @@ export default function AnalysisTabs({ result }: Props) {
                   </thead>
                   <tbody>
                     {result.key_values.map((kv, i) => (
-                      <tr key={i} className="border-t border-slate-800">
-                        <td className="py-2 pr-2 text-slate-300">{kv.parameter}</td>
-                        <td className="py-2 pr-2 text-white font-medium">
-                          {kv.value} <span className="text-slate-500">{kv.unit}</span>
+                      <tr key={i} className="border-t border-hairline">
+                        <td className="py-2 pr-2 text-body">{kv.parameter}</td>
+                        <td className="py-2 pr-2 text-ink font-medium">
+                          {kv.value} <span className="text-muted">{kv.unit}</span>
                         </td>
-                        <td className="py-2 pr-2 text-slate-500">{kv.reference_range}</td>
-                        <td className="py-2 pr-2 text-slate-300">
+                        <td className="py-2 pr-2 text-muted">{kv.reference_range}</td>
+                        <td className="py-2 pr-2 text-body">
                           <span className={statusBadgeClass(kv.status)}>{kv.status}</span>{" "}
                           {kv.interpretation}
                         </td>
@@ -110,16 +110,16 @@ export default function AnalysisTabs({ result }: Props) {
             )}
             {result.surveillance_triggered.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-white mb-2">
+                <h4 className="text-sm font-medium text-ink mb-2">
                   Examens à planifier
                 </h4>
-                <ul className="space-y-1.5 text-xs text-slate-300">
+                <ul className="space-y-1.5 text-xs text-body">
                   {result.surveillance_triggered.map((s, i) => (
                     <li key={i} className="flex gap-2">
-                      <Stethoscope className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                      <Stethoscope className="w-3.5 h-3.5 text-muted shrink-0 mt-0.5" />
                       <span>
-                        <span className="text-white">{s.exam}</span> · {s.delay} —{" "}
-                        <span className="text-slate-500">{s.reason}</span>
+                        <span className="text-ink">{s.exam}</span> · {s.delay} —{" "}
+                        <span className="text-muted">{s.reason}</span>
                       </span>
                     </li>
                   ))}
@@ -131,25 +131,25 @@ export default function AnalysisTabs({ result }: Props) {
 
         {tab === "points" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <section className="rounded-lg border border-emerald-700/30 bg-emerald-900/10 p-4">
-              <h4 className="text-sm font-medium text-emerald-300 flex items-center gap-2 mb-2">
+            <section className="rounded-lg border border-success/30 bg-success/5 p-4">
+              <h4 className="text-sm font-medium text-success flex items-center gap-2 mb-2">
                 <ThumbsUp className="w-4 h-4" /> Favorables
               </h4>
-              <ul className="space-y-1.5 text-xs text-slate-200">
+              <ul className="space-y-1.5 text-xs text-body-strong">
                 {result.favorable_points.length === 0 ? (
-                  <li className="text-slate-500 italic">Aucun point particulier</li>
+                  <li className="text-muted italic">Aucun point particulier</li>
                 ) : (
                   result.favorable_points.map((p, i) => <li key={i}>• {p}</li>)
                 )}
               </ul>
             </section>
-            <section className="rounded-lg border border-amber-700/30 bg-amber-900/10 p-4">
-              <h4 className="text-sm font-medium text-amber-300 flex items-center gap-2 mb-2">
+            <section className="rounded-lg border border-warning/30 bg-warning/5 p-4">
+              <h4 className="text-sm font-medium text-warning flex items-center gap-2 mb-2">
                 <AlertCircle className="w-4 h-4" /> Préoccupants
               </h4>
-              <ul className="space-y-1.5 text-xs text-slate-200">
+              <ul className="space-y-1.5 text-xs text-body-strong">
                 {result.concerning_points.length === 0 ? (
-                  <li className="text-slate-500 italic">Aucun</li>
+                  <li className="text-muted italic">Aucun</li>
                 ) : (
                   result.concerning_points.map((p, i) => <li key={i}>• {p}</li>)
                 )}
@@ -161,13 +161,13 @@ export default function AnalysisTabs({ result }: Props) {
         {tab === "questions" && (
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <h4 className="text-sm font-medium text-white">
+              <h4 className="text-sm font-medium text-ink">
                 {result.questions_for_team.length} question
                 {result.questions_for_team.length > 1 ? "s" : ""} pour l&apos;équipe
               </h4>
               <button
                 onClick={copyAllQuestions}
-                className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white px-2.5 py-1.5 rounded border border-slate-700 hover:border-slate-600"
+                className="flex items-center gap-1.5 text-xs text-body hover:text-ink px-2.5 py-1.5 rounded border border-hairline-strong hover:border-hairline-strong"
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? "Copié" : "Copier tout"}
@@ -177,21 +177,21 @@ export default function AnalysisTabs({ result }: Props) {
               {result.questions_for_team.map((q, i) => (
                 <li
                   key={i}
-                  className="rounded-lg border border-slate-800 bg-slate-950/40 p-3 space-y-1.5"
+                  className="rounded-lg border border-hairline bg-canvas-soft p-3 space-y-1.5"
                 >
                   <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider">
                     <span
                       className={`px-1.5 py-0.5 rounded ${
                         q.priority === "high"
-                          ? "bg-red-500/20 text-red-300"
-                          : "bg-slate-700 text-slate-300"
+                          ? "bg-error/10 text-error"
+                          : "bg-surface-strong text-body"
                       }`}
                     >
                       {q.priority === "high" ? "Prioritaire" : "Normale"}
                     </span>
-                    <span className="text-slate-500">{q.addressed_to}</span>
+                    <span className="text-muted">{q.addressed_to}</span>
                   </div>
-                  <p className="text-sm text-slate-100">{q.question}</p>
+                  <p className="text-sm text-ink">{q.question}</p>
                 </li>
               ))}
             </ul>
@@ -204,13 +204,13 @@ export default function AnalysisTabs({ result }: Props) {
 
 function statusBadgeClass(status: string): string {
   const map: Record<string, string> = {
-    normal: "px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-300",
-    favorable: "px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-300",
-    warning: "px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300",
-    concerning: "px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300",
-    critical: "px-1.5 py-0.5 rounded text-[10px] bg-red-500/15 text-red-300",
+    normal: "px-1.5 py-0.5 rounded text-[10px] bg-success/10 text-success",
+    favorable: "px-1.5 py-0.5 rounded text-[10px] bg-success/10 text-success",
+    warning: "px-1.5 py-0.5 rounded text-[10px] bg-warning/10 text-warning",
+    concerning: "px-1.5 py-0.5 rounded text-[10px] bg-warning/10 text-warning",
+    critical: "px-1.5 py-0.5 rounded text-[10px] bg-error/10 text-error",
   };
   return (
-    map[status] ?? "px-1.5 py-0.5 rounded text-[10px] bg-slate-700 text-slate-300"
+    map[status] ?? "px-1.5 py-0.5 rounded text-[10px] bg-surface-strong text-body"
   );
 }

@@ -47,42 +47,42 @@ export default function Step3Situation({ state, update, onBack, onNext }: Props)
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-white">Situation actuelle</h2>
-        <p className="text-sm text-slate-400 mt-1">
+        <h2 className="text-2xl font-semibold text-ink">Situation actuelle</h2>
+        <p className="text-sm text-muted mt-1">
           Ces informations contextualisent les analyses Claude.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <label className="block text-sm space-y-1">
-          <span className="text-slate-300">Date de diagnostic</span>
+          <span className="text-body">Date de diagnostic</span>
           <input
             type="date"
             value={state.diagnosisDate}
             onChange={(e) => update({ diagnosisDate: e.target.value })}
-            className="w-full h-11 px-3 rounded-lg bg-slate-900 border border-slate-700 text-white"
+            className="w-full h-11 px-3 rounded-lg bg-surface-card border border-hairline-strong text-ink"
           />
         </label>
         <label className="block text-sm space-y-1">
-          <span className="text-slate-300">Stade / classification</span>
+          <span className="text-body">Stade / classification</span>
           <input
             value={state.stage}
             onChange={(e) => update({ stage: e.target.value })}
             placeholder="ex : ENSAT II"
-            className="w-full h-11 px-3 rounded-lg bg-slate-900 border border-slate-700 text-white"
+            className="w-full h-11 px-3 rounded-lg bg-surface-card border border-hairline-strong text-ink"
           />
         </label>
       </div>
 
-      <div className="rounded-lg border border-slate-800 p-4 space-y-3">
+      <div className="rounded-lg border border-hairline p-4 space-y-3">
         <label className="flex items-center gap-3 text-sm">
           <input
             type="checkbox"
             checked={state.hadSurgery}
             onChange={(e) => update({ hadSurgery: e.target.checked })}
-            className="w-4 h-4 accent-indigo-500"
+            className="w-4 h-4 accent-primary"
           />
-          <span className="text-slate-300">Une chirurgie a déjà eu lieu</span>
+          <span className="text-body">Une chirurgie a déjà eu lieu</span>
         </label>
         {state.hadSurgery && (
           <div className="grid grid-cols-2 gap-4">
@@ -90,12 +90,12 @@ export default function Step3Situation({ state, update, onBack, onNext }: Props)
               type="date"
               value={state.surgeryDate}
               onChange={(e) => update({ surgeryDate: e.target.value })}
-              className="h-11 px-3 rounded-lg bg-slate-900 border border-slate-700 text-white"
+              className="h-11 px-3 rounded-lg bg-surface-card border border-hairline-strong text-ink"
             />
             <select
               value={state.surgeryResult}
               onChange={(e) => update({ surgeryResult: e.target.value })}
-              className="h-11 px-3 rounded-lg bg-slate-900 border border-slate-700 text-white"
+              className="h-11 px-3 rounded-lg bg-surface-card border border-hairline-strong text-ink"
             >
               <option value="R0">R0 — résection complète</option>
               <option value="R1">R1 — micro-résiduel</option>
@@ -106,7 +106,7 @@ export default function Step3Situation({ state, update, onBack, onNext }: Props)
       </div>
 
       <div>
-        <span className="text-sm text-slate-300 block mb-2">Traitements en cours</span>
+        <span className="text-sm text-body block mb-2">Traitements en cours</span>
         <div className="flex flex-wrap gap-2">
           {TREATMENTS.map((t) => (
             <button
@@ -115,8 +115,8 @@ export default function Step3Situation({ state, update, onBack, onNext }: Props)
               onClick={() => toggleTreatment(t)}
               className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
                 state.treatments.includes(t)
-                  ? "border-indigo-500 bg-indigo-500/10 text-white"
-                  : "border-slate-700 text-slate-400 hover:border-slate-600"
+                  ? "border-ink bg-surface-strong text-ink"
+                  : "border-hairline-strong text-muted hover:border-hairline-strong"
               }`}
             >
               {t}
@@ -127,10 +127,10 @@ export default function Step3Situation({ state, update, onBack, onNext }: Props)
 
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-slate-300">Équipe médicale</span>
+          <span className="text-sm text-body">Équipe médicale</span>
           <button
             onClick={addDoctor}
-            className="text-xs text-indigo-400 hover:text-indigo-300"
+            className="text-xs text-ink hover:text-ink"
           >
             + Ajouter un médecin
           </button>
@@ -141,23 +141,23 @@ export default function Step3Situation({ state, update, onBack, onNext }: Props)
               placeholder="Nom"
               value={d.name}
               onChange={(e) => updateDoctor(i, { name: e.target.value })}
-              className="col-span-2 h-9 px-2 rounded bg-slate-900 border border-slate-700 text-sm text-white"
+              className="col-span-2 h-9 px-2 rounded bg-surface-card border border-hairline-strong text-sm text-ink"
             />
             <input
               placeholder="Spécialité"
               value={d.specialty}
               onChange={(e) => updateDoctor(i, { specialty: e.target.value })}
-              className="col-span-2 h-9 px-2 rounded bg-slate-900 border border-slate-700 text-sm text-white"
+              className="col-span-2 h-9 px-2 rounded bg-surface-card border border-hairline-strong text-sm text-ink"
             />
             <input
               placeholder="Hôpital"
               value={d.hospital}
               onChange={(e) => updateDoctor(i, { hospital: e.target.value })}
-              className="col-span-2 h-9 px-2 rounded bg-slate-900 border border-slate-700 text-sm text-white"
+              className="col-span-2 h-9 px-2 rounded bg-surface-card border border-hairline-strong text-sm text-ink"
             />
             <button
               onClick={() => removeDoctor(i)}
-              className="col-span-1 h-9 rounded border border-slate-700 text-xs text-slate-400 hover:text-red-400"
+              className="col-span-1 h-9 rounded border border-hairline-strong text-xs text-muted hover:text-error"
             >
               ✕
             </button>
@@ -168,13 +168,13 @@ export default function Step3Situation({ state, update, onBack, onNext }: Props)
       <div className="flex justify-between pt-2">
         <button
           onClick={onBack}
-          className="h-11 px-5 rounded-lg border border-slate-700 text-slate-300 hover:border-slate-600"
+          className="h-11 px-5 rounded-lg border border-hairline-strong text-body hover:border-hairline-strong"
         >
           Retour
         </button>
         <button
           onClick={onNext}
-          className="h-11 px-5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
+          className="h-11 px-5 rounded-lg bg-primary hover:bg-primary-active text-on-primary font-medium"
         >
           Suivant
         </button>

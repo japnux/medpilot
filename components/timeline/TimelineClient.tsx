@@ -4,30 +4,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { formatDateFr } from "@/lib/dates";
-import {
-  Calendar,
-  Clock,
-  FileText,
-  Stethoscope,
-  CheckCircle,
-} from "lucide-react";
+import { EVENT_TYPES, getEventMeta } from "@/lib/timeline-events";
+import type { EventType } from "@/types/database";
+import { Clock, AlertCircle } from "lucide-react";
 
-interface Consultation {
+interface TimelineEvent {
   id: string;
-  consultation_date: string;
-  doctor_name: string | null;
-  consultation_type: string | null;
-  hospital: string | null;
-  status: string;
-  decisions_made?: unknown;
-}
-
-interface Document {
-  id: string;
+  event_type: string;
+  event_date: string;
   title: string;
-  document_type: string;
-  document_date: string | null;
-  created_at: string;
+  summary: string | null;
+  is_critical: boolean | null;
+  linked_document_id: string | null;
+  linked_consultation_id: string | null;
 }
 
 interface SurveillanceSlot {
@@ -40,73 +29,39 @@ interface SurveillanceSlot {
 
 interface Props {
   familyId: string;
-  upcomingConsults: Consultation[];
-  pastConsults: Consultation[];
-  documents: Document[];
+  events: TimelineEvent[];
   surveillance: SurveillanceSlot[];
 }
 
 /**
- * Timeline simplifiée : 3 sections séparées
- *  1. Prochains RDV (consultations à venir + surveillance planifiée)
- *  2. Documents (tous les comptes-rendus analysés)
- *  3. RDV passés (consultations terminées)
+ * Timeline unifiée : axe chronologique vertical, du plus récent au plus ancien.
+ * - En tête : les 5 prochaines surveillances planifiées
+ * - Puis : tous les événements (chirurgie, consultations, documents, biologie)
+ *   avec dots colorés par type et clic vers la fiche détail.
  */
 export default function TimelineClient({
-  upcomingConsults,
-  pastConsults,
-  documents,
-  surveillance,
   familyId,
+  events,
+  surveillance,
 }: Props) {
   const router = useRouter();
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold text-white">Timeline du parcours</h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Vue d&apos;ensemble : prochains rendez-vous, documents médicaux et historique.
+        <h1 className="text-2xl font-semibold text-ink">Timeline du parcours</h1>
+        <p className="text-sm text-muted mt-1">
+          Tous les événements médicaux, du plus récent au plus ancien.
         </p>
       </header>
 
-      {/* ====== Prochains RDV ====== */}
-      <section className="space-y-3">
-        <SectionHeader
-          title="Prochains rendez-vous"
-          count={upcomingConsults.length + surveillance.length}
-        />
-        {upcomingConsults.length + surveillance.length === 0 ? (
-          <EmptyCard text="Aucun rendez-vous planifié." />
-        ) : (
+      {/* ====== Prochaines surveillances ====== */}
+      {surveillance.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium text-ink">
+            Prochaines surveillances
+          </h2>
           <ul className="space-y-2">
-            {upcomingConsults.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/consultation/${c.id}`}
-                  className="block rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900/70 p-4 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Stethoscope className="w-4 h-4 text-blue-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-white">
-                          {formatDateFr(c.consultation_date)}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {daysUntil(c.consultation_date)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {c.consultation_type ?? "Consultation"}
-                        {c.doctor_name && ` · ${c.doctor_name}`}
-                        {c.hospital && ` · ${c.hospital}`}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              </li>
-            ))}
             {surveillance.map((s) => (
               <SurveillanceCard
                 key={s.id}
@@ -116,115 +71,95 @@ export default function TimelineClient({
               />
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
 
-      {/* ====== Documents ====== */}
+      {/* ====== Timeline chronologique ====== */}
       <section className="space-y-3">
-        <SectionHeader title="Documents médicaux" count={documents.length} />
-        {documents.length === 0 ? (
-          <EmptyCard text="Aucun document analysé pour le moment. Allez dans « Analyser »." />
+        <h2 className="text-sm font-medium text-ink border-b border-hairline pb-2">
+          Historique du parcours
+        </h2>
+
+        {events.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-hairline bg-canvas-soft p-6 text-center">
+            <p className="text-xs text-muted italic">
+              Aucun événement encore enregistré. Analysez un document ou ajoutez
+              une consultation pour commencer.
+            </p>
+          </div>
         ) : (
-          <ul className="space-y-2">
-            {documents.map((d) => (
-              <li key={d.id}>
-                <Link
-                  href={`/documents/${d.id}`}
-                  className="block rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900/70 p-4 transition-colors"
-                >
-                  <div className="flex items-start gap-3">
-                    <FileText className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-white">
-                          {formatDateFr(d.document_date ?? d.created_at)}
-                        </span>
-                        <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
-                          {d.document_type}
-                        </span>
-                      </div>
-                      <p className="text-sm text-slate-200 mt-0.5 truncate">{d.title}</p>
-                    </div>
-                  </div>
-                </Link>
-              </li>
+          <div className="relative pl-8 space-y-4">
+            {/* Ligne verticale chronologique */}
+            <div className="absolute left-3 top-2 bottom-2 w-px bg-surface-strong"></div>
+
+            {events.map((e) => (
+              <EventItem key={e.id} event={e} />
             ))}
-          </ul>
-        )}
-      </section>
-
-      {/* ====== RDV passés ====== */}
-      <section className="space-y-3">
-        <SectionHeader title="Rendez-vous passés" count={pastConsults.length} />
-        {pastConsults.length === 0 ? (
-          <EmptyCard text="Aucune consultation passée enregistrée." />
-        ) : (
-          <ul className="space-y-2">
-            {pastConsults.map((c) => {
-              const decisions = Array.isArray(c.decisions_made)
-                ? (c.decisions_made as string[])
-                : null;
-              return (
-                <li key={c.id}>
-                  <Link
-                    href={`/consultation/${c.id}`}
-                    className="block rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900/70 p-4 transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
-                      {c.status === "completed" ? (
-                        <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      ) : (
-                        <Stethoscope className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-white">
-                            {formatDateFr(c.consultation_date)}
-                          </span>
-                          <span className="text-xs text-slate-500">
-                            {c.consultation_type ?? "Consultation"}
-                            {c.doctor_name && ` · ${c.doctor_name}`}
-                          </span>
-                          {c.status !== "completed" && (
-                            <span className="text-[10px] text-amber-400 italic">
-                              non renseignée
-                            </span>
-                          )}
-                        </div>
-                        {decisions && decisions.length > 0 && (
-                          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                            {decisions.join(" · ")}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          </div>
         )}
       </section>
     </div>
   );
 }
 
-function SectionHeader({ title, count }: { title: string; count: number }) {
-  return (
-    <div className="flex items-baseline gap-2 border-b border-slate-800 pb-2">
-      <h2 className="text-base font-medium text-white">{title}</h2>
-      <span className="text-xs text-slate-500">
-        {count} {count > 1 ? "éléments" : "élément"}
-      </span>
+function EventItem({ event }: { event: TimelineEvent }) {
+  const meta = getEventMeta(event.event_type);
+  const Icon = meta.icon;
+
+  // Si l'événement est lié à un document ou une consultation, rendre cliquable
+  const href = event.linked_document_id
+    ? `/documents/${event.linked_document_id}`
+    : event.linked_consultation_id
+      ? `/consultation/${event.linked_consultation_id}`
+      : null;
+
+  const card = (
+    <div
+      className={`rounded-lg border p-3 transition-colors ${
+        event.is_critical
+          ? "border-error/30 bg-canvas-soft"
+          : "border-hairline bg-surface-card"
+      } ${href ? "hover:bg-surface-strong" : ""}`}
+    >
+      <div className="flex items-baseline gap-2 flex-wrap mb-1">
+        <span className="text-xs text-muted">
+          {formatDateFr(event.event_date)}
+        </span>
+        <span
+          className="px-1.5 py-0.5 rounded text-[10px]"
+          style={{
+            color: meta.color,
+            backgroundColor: `${meta.color}1a`,
+            border: `1px solid ${meta.color}40`,
+          }}
+        >
+          {meta.label}
+        </span>
+        {event.is_critical && (
+          <span className="flex items-center gap-1 text-[10px] text-error">
+            <AlertCircle className="w-3 h-3" />
+            Critique
+          </span>
+        )}
+      </div>
+      <h3 className="text-sm font-medium text-ink">{event.title}</h3>
+      {event.summary && (
+        <p className="text-xs text-muted mt-1 line-clamp-3">{event.summary}</p>
+      )}
     </div>
   );
-}
 
-function EmptyCard({ text }: { text: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-slate-800 bg-slate-900/20 p-6 text-center">
-      <p className="text-xs text-slate-500 italic">{text}</p>
-    </div>
+    <article className="relative">
+      {/* Dot coloré sur la ligne */}
+      <div
+        className="absolute -left-8 top-1.5 w-6 h-6 rounded-full border-2 flex items-center justify-center"
+        style={{ borderColor: meta.color, backgroundColor: "#0d1520" }}
+      >
+        <Icon className="w-3 h-3" style={{ color: meta.color }} />
+      </div>
+      {href ? <Link href={href}>{card}</Link> : card}
+    </article>
   );
 }
 
@@ -261,12 +196,12 @@ function SurveillanceCard({
   }
 
   return (
-    <li className="rounded-lg border border-dashed border-slate-800 bg-slate-950/20 p-4">
+    <li className="rounded-lg border border-dashed border-hairline bg-canvas-soft p-4">
       <div className="flex items-start gap-3">
         <Clock className="w-4 h-4 shrink-0 mt-0.5" style={{ color }} />
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-sm font-medium text-slate-200">
+            <span className="text-sm font-medium text-body-strong">
               {formatDateFr(slot.due_date)}
             </span>
             <span
@@ -283,27 +218,17 @@ function SurveillanceCard({
                   ? `Dans ${dueIn}j`
                   : `Dans ${dueIn}j`}
             </span>
-            <span className="text-xs text-slate-500">à planifier</span>
+            <span className="text-xs text-muted">à planifier</span>
           </div>
-          <p className="text-sm text-slate-300 mt-0.5">{slot.label}</p>
+          <p className="text-sm text-body mt-0.5">{slot.label}</p>
         </div>
         <button
           onClick={markDone}
-          className="text-xs text-emerald-400 hover:text-emerald-300 px-2 py-1 rounded border border-emerald-700/40 shrink-0"
+          className="text-xs text-success hover:text-success px-2 py-1 rounded border border-success/30 shrink-0"
         >
           Fait
         </button>
       </div>
     </li>
   );
-}
-
-function daysUntil(dateIso: string): string {
-  const days = Math.ceil(
-    (new Date(dateIso).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-  );
-  if (days === 0) return "aujourd'hui";
-  if (days === 1) return "demain";
-  if (days < 0) return `il y a ${Math.abs(days)} j`;
-  return `dans ${days} j`;
 }

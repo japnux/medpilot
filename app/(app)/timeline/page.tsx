@@ -21,54 +21,32 @@ export default async function TimelinePage() {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const [
-    { data: upcomingConsults },
-    { data: pastConsults },
-    { data: documents },
-    { data: surveillance },
-  ] = await Promise.all([
-    // Prochains RDV : consultations status=upcoming OU date >= today
+  const [{ data: events }, { data: surveillance }] = await Promise.all([
+    // Tous les événements de la timeline, du plus récent au plus ancien
     supabase
-      .from("consultations")
-      .select("id, consultation_date, doctor_name, consultation_type, hospital, status")
+      .from("timeline_events")
+      .select(
+        "id, event_type, event_date, title, summary, is_critical, linked_document_id, linked_consultation_id",
+      )
       .eq("family_id", membership.family_id)
-      .neq("status", "cancelled")
-      .gte("consultation_date", today)
-      .order("consultation_date", { ascending: true })
-      .limit(50),
-    // Passés : status=completed OU date < today
-    supabase
-      .from("consultations")
-      .select("id, consultation_date, doctor_name, consultation_type, hospital, status, decisions_made")
-      .eq("family_id", membership.family_id)
-      .lt("consultation_date", today)
-      .neq("status", "cancelled")
-      .order("consultation_date", { ascending: false })
-      .limit(100),
-    // Documents : tous, triés par date du document desc
-    supabase
-      .from("medical_documents")
-      .select("id, title, document_type, document_date, created_at, analysis_summary")
-      .eq("family_id", membership.family_id)
-      .order("document_date", { ascending: false, nullsFirst: false })
+      .order("event_date", { ascending: false })
       .order("created_at", { ascending: false })
-      .limit(100),
-    // Surveillance non faite (compte dans Prochains RDV)
+      .limit(200),
+    // Surveillance : seulement les 5 prochaines échéances non faites
     supabase
       .from("surveillance_alerts")
       .select("id, alert_type, label, due_date, is_done")
       .eq("family_id", membership.family_id)
       .eq("is_done", false)
+      .gte("due_date", today)
       .order("due_date", { ascending: true })
-      .limit(50),
+      .limit(5),
   ]);
 
   return (
     <TimelineClient
       familyId={membership.family_id}
-      upcomingConsults={upcomingConsults ?? []}
-      pastConsults={pastConsults ?? []}
-      documents={documents ?? []}
+      events={events ?? []}
       surveillance={surveillance ?? []}
     />
   );
