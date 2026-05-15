@@ -183,6 +183,7 @@ export interface Database {
           analysis_summary: Json | null;
           doctor_name: string | null;
           storage_path: string | null;
+          content_hash: string | null;
           uploaded_by: string | null;
           created_at: string;
         };
@@ -196,6 +197,7 @@ export interface Database {
           analysis_summary?: Json | null;
           doctor_name?: string | null;
           storage_path?: string | null;
+          content_hash?: string | null;
           uploaded_by?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["medical_documents"]["Insert"]>;

@@ -39,13 +39,54 @@ export default function AnalyzerClient({ familyId, history }: Props) {
   } | null>(null);
   // Référence au File original pour uploader vers Supabase Storage après save
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  // Hash SHA-256 du PDF, calculé dès le drop. Permet de détecter un doublon
+  // (même fichier déjà uploadé pour cette famille).
+  const [pdfHash, setPdfHash] = useState<string | null>(null);
+  // Document existant identifié comme doublon (même hash) — empêche le re-upload
+  const [duplicate, setDuplicate] = useState<{
+    id: string;
+    title: string;
+    document_date: string | null;
+  } | null>(null);
+
+  /** Calcule le SHA-256 d'un File via Web Crypto, retourne hex. */
+  async function sha256Hex(file: File): Promise<string> {
+    const buf = await file.arrayBuffer();
+    const hash = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
 
   async function handlePdf(file: File) {
     setError(null);
     setParsingPdf(true);
     setPdfInfo(null);
     setPdfFile(file);
+    setPdfHash(null);
+    setDuplicate(null);
     setText("");
+
+    // 1. Hash + détection doublon (avant tout appel coûteux)
+    try {
+      const hash = await sha256Hex(file);
+      setPdfHash(hash);
+      const supabase = createClient();
+      const { data: existing } = await supabase
+        .from("medical_documents")
+        .select("id, title, document_date")
+        .eq("family_id", familyId)
+        .eq("content_hash", hash)
+        .maybeSingle();
+      if (existing) {
+        setDuplicate(existing);
+        setParsingPdf(false);
+        return;
+      }
+    } catch (e) {
+      console.warn("Hash check failed (continue anyway)", e);
+    }
+
     const form = new FormData();
     form.append("file", file);
     try {
@@ -144,7 +185,7 @@ export default function AnalyzerClient({ familyId, history }: Props) {
     try {
       const supabase = createClient();
 
-      // 1. Insérer la rangée document (sans storage_path encore)
+      // 1. Insérer la rangée document avec content_hash pour dédup futur
       const { data: doc, error: docErr } = await supabase
         .from("medical_documents")
         .insert({
@@ -157,6 +198,7 @@ export default function AnalyzerClient({ familyId, history }: Props) {
             : ""),
           doctor_name: result.doctor_name ?? null,
           analysis_summary: JSON.parse(JSON.stringify(result)),
+          content_hash: pdfHash,
         })
         .select("id")
         .single();
@@ -231,10 +273,51 @@ export default function AnalyzerClient({ familyId, history }: Props) {
 
       {/* Dropzone + textarea */}
       <div className="rounded-xl border border-hairline bg-surface-card p-4 space-y-3">
+        {duplicate && (
+          <div className="rounded-md border border-warning/30 bg-canvas-soft p-3 flex items-start gap-3">
+            <svg
+              className="w-4 h-4 text-warning shrink-0 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.84-2.75L13.74 4.75a2 2 0 00-3.48 0L3.09 16.25A2 2 0 004.93 19z" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-ink font-medium">Ce PDF a déjà été analysé.</p>
+              <p className="text-xs text-muted mt-0.5">
+                Document existant : <span className="text-ink">{duplicate.title}</span>
+                {duplicate.document_date && ` (${duplicate.document_date})`}
+              </p>
+              <div className="flex gap-2 mt-2">
+                <Link
+                  href={`/documents/${duplicate.id}`}
+                  className="text-xs text-primary hover:text-primary-deep"
+                >
+                  Voir le document existant →
+                </Link>
+                <button
+                  onClick={() => {
+                    setDuplicate(null);
+                    setPdfFile(null);
+                    setPdfInfo(null);
+                    setPdfHash(null);
+                  }}
+                  className="text-xs text-muted hover:text-ink"
+                >
+                  Choisir un autre fichier
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <label
           htmlFor="pdf-input"
           className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-            parsingPdf
+            duplicate
+              ? "border-warning/40 bg-canvas-soft opacity-60"
+              : parsingPdf
               ? "border-ink bg-canvas-soft"
               : pdfInfo
                 ? "border-success/30 bg-success/5"
@@ -282,7 +365,7 @@ export default function AnalyzerClient({ familyId, history }: Props) {
             id="pdf-input"
             type="file"
             accept="application/pdf"
-            disabled={parsingPdf}
+            disabled={parsingPdf || !!duplicate}
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) handlePdf(f);
@@ -303,7 +386,7 @@ export default function AnalyzerClient({ familyId, history }: Props) {
           </p>
           <button
             onClick={analyze}
-            disabled={analyzing || !pdfInfo}
+            disabled={analyzing || !pdfInfo || !!duplicate}
             className="flex items-center gap-2 h-10 px-5 rounded-lg bg-primary hover:bg-primary-active disabled:opacity-40 text-sm font-medium text-on-primary"
           >
             {analyzing && <Loader2 className="w-4 h-4 animate-spin" />}

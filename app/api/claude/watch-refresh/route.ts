@@ -105,15 +105,17 @@ export async function POST(request: NextRequest) {
   try {
     response = await anthropic.messages.create({
       model: "claude-opus-4-7",
-      max_tokens: 8000,
+      // Budget large : la web_search consomme aussi des tokens en intermédiaire,
+      // et le JSON final pour 5 essais + 5 publis + 5 centres + 6 ressources +
+      // 5 alertes + synthèse peut faire ~10k tokens.
+      max_tokens: 16384,
       system: systemPrompt,
       messages: [
         {
           role: "user",
-          content: `Génère la veille proactive complète pour ${ctx.patientFirstName} à la date du ${ctx.todayDate}. Effectue les recherches web nécessaires (clinicaltrials.gov, PubMed, sociétés savantes) et retourne le JSON structuré.`,
+          content: `Génère la veille proactive complète pour ${ctx.patientFirstName} à la date du ${ctx.todayDate}. Effectue les recherches web nécessaires (clinicaltrials.gov, PubMed, sociétés savantes) puis retourne UNIQUEMENT le JSON structuré, sans préambule, sans markdown, sans texte après le } final.`,
         },
       ],
-      // web_search tool — recherche live des sources
       tools: [
         {
           type: "web_search_20250305" as never,
@@ -133,25 +135,62 @@ export async function POST(request: NextRequest) {
     .join("\n")
     .trim();
 
+  // Logguer en console (visible Vercel) pour debug
+  console.log("[watch-refresh] stop_reason=", response.stop_reason);
+  console.log(
+    "[watch-refresh] usage=",
+    JSON.stringify(response.usage),
+    "text_len=",
+    fullText.length,
+  );
+
   if (!fullText) {
     return NextResponse.json(
-      { error: "Réponse Claude vide", raw_blocks: response.content.length },
+      {
+        error: "Réponse Claude vide",
+        raw_blocks: response.content.length,
+        stop_reason: response.stop_reason,
+        block_types: response.content.map((b) => b.type),
+      },
       { status: 502 },
     );
   }
 
-  // Parser JSON robuste (strip fences + extract first {...} last })
+  // Parser JSON robuste (4 stratégies en cascade)
   let parsedJson;
   try {
     parsedJson = parseJsonResponse<Record<string, unknown>>(fullText);
   } catch (e) {
-    return NextResponse.json(
-      {
-        error: "JSON malformé dans la réponse Claude",
-        preview: fullText.slice(0, 400),
-      },
-      { status: 502 },
-    );
+    // Fallback : 2e appel à Claude Haiku pour structurer le texte exploratoire en JSON
+    console.warn("[watch-refresh] JSON parse failed, trying Haiku structuring fallback");
+    try {
+      const structuring = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 12000,
+        system:
+          "Tu reçois un texte exploratoire d'une veille médicale. Tu dois en extraire un JSON STRICTEMENT VALIDE avec la structure : { executive_summary: string, top_priorities: array, clinical_trials: array, publications: array, expert_centers: array, patient_resources: array, contextual_alerts: array }. Retourne UNIQUEMENT le JSON, rien d'autre. Si une section n'a pas de contenu, retourne []. Ne jamais inventer d'URL ou de référence.",
+        messages: [{ role: "user", content: fullText }],
+      });
+      const fallbackText = structuring.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("\n")
+        .trim();
+      parsedJson = parseJsonResponse<Record<string, unknown>>(fallbackText);
+      console.log("[watch-refresh] Haiku fallback succeeded");
+    } catch (fallbackErr) {
+      return NextResponse.json(
+        {
+          error: "JSON malformé dans la réponse Claude (même après fallback)",
+          stop_reason: response.stop_reason,
+          text_length: fullText.length,
+          preview_start: fullText.slice(0, 500),
+          preview_end: fullText.slice(-500),
+          parse_error: e instanceof Error ? e.message : String(e),
+        },
+        { status: 502 },
+      );
+    }
   }
 
   // Re-serialiser tout en JSON propre pour Supabase (les types Json strict

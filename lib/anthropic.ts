@@ -109,23 +109,75 @@ export async function callClaudeJson<T = unknown>(
 
 /**
  * Parsing tolérant d'une réponse JSON de Claude.
- * Strip les fences markdown ```json ... ```, et tronque à la première { ... dernière }.
+ * Stratégies (en cascade) :
+ *  1. Strip fences markdown ```json ... ```
+ *  2. Tente JSON.parse direct
+ *  3. Cherche le 1er `{` puis utilise un compteur d'accolades équilibré pour
+ *     trouver le `}` correspondant (gère un préambule + suffixe parasite)
+ *  4. Fallback : ancien comportement first `{` / last `}`
  */
 export function parseJsonResponse<T = unknown>(raw: string): T {
-  let s = raw.trim();
-  // Strip fences markdown
-  s = s.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
-  // Extraire entre première { et dernière }
-  const first = s.indexOf("{");
-  const last = s.lastIndexOf("}");
-  if (first !== -1 && last > first) {
-    s = s.slice(first, last + 1);
-  }
+  const cleaned = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/, "")
+    .trim();
+
+  // Tentative 1 : parse direct (cas optimal)
   try {
-    return JSON.parse(s) as T;
-  } catch (e) {
-    throw new Error(
-      `Réponse Claude non parsable en JSON. Aperçu : ${raw.slice(0, 200)}`,
-    );
+    return JSON.parse(cleaned) as T;
+  } catch {
+    // continue
   }
+
+  // Tentative 2 : extraction via compteur d'accolades depuis le 1er {
+  const firstBrace = cleaned.indexOf("{");
+  if (firstBrace !== -1) {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = firstBrace; i < cleaned.length; i++) {
+      const c = cleaned[i];
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (c === "\\") {
+        escape = true;
+        continue;
+      }
+      if (c === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+      if (c === "{") depth++;
+      else if (c === "}") {
+        depth--;
+        if (depth === 0) {
+          const candidate = cleaned.slice(firstBrace, i + 1);
+          try {
+            return JSON.parse(candidate) as T;
+          } catch {
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Tentative 3 : ancien comportement (first { / last })
+  const first = cleaned.indexOf("{");
+  const last = cleaned.lastIndexOf("}");
+  if (first !== -1 && last > first) {
+    try {
+      return JSON.parse(cleaned.slice(first, last + 1)) as T;
+    } catch {
+      // tombe en erreur ci-dessous
+    }
+  }
+
+  throw new Error(
+    `Réponse Claude non parsable en JSON. Longueur ${raw.length}. Aperçu début : ${raw.slice(0, 300)}. Aperçu fin : ${raw.slice(-300)}`,
+  );
 }
