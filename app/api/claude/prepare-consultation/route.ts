@@ -150,6 +150,44 @@ export async function POST(request: NextRequest) {
           .join("\n")
       : "aucune valeur préoccupante récente";
 
+  // Décisions du parcours :
+  //  - pending : on les rappelle pour les inscrire à l'ordre du jour
+  //  - decided récentes : pour que Claude ne reformule pas des questions déjà tranchées
+  const { data: decisions } = await supabase
+    .from("decisions")
+    .select(
+      "title, question, category, priority, status, chosen_option, rationale, decided_by, decided_at, due_date",
+    )
+    .eq("family_id", family_id)
+    .in("status", ["pending", "decided"])
+    .order("status", { ascending: true })
+    .order("priority", { ascending: true })
+    .order("decided_at", { ascending: false, nullsFirst: false })
+    .limit(20);
+
+  const pendingDec = (decisions ?? []).filter((d) => d.status === "pending");
+  const decidedDec = (decisions ?? []).filter((d) => d.status === "decided");
+
+  const pendingDecisionsStr =
+    pendingDec.length > 0
+      ? pendingDec
+          .map(
+            (d) =>
+              `- [${d.category}/${d.priority}] ${d.title}${d.question ? ` — ${d.question}` : ""}${d.due_date ? ` (échéance ${d.due_date})` : ""}`,
+          )
+          .join("\n")
+      : "aucune";
+
+  const decidedDecisionsStr =
+    decidedDec.length > 0
+      ? decidedDec
+          .map(
+            (d) =>
+              `- ${d.decided_at ?? "?"} ${d.title} → ${d.chosen_option}${d.rationale ? ` (${d.rationale})` : ""}${d.decided_by ? ` — par ${d.decided_by}` : ""}`,
+          )
+          .join("\n")
+      : "aucune";
+
   // Équipe médicale
   const careTeam = Array.isArray(profile.care_team)
     ? (profile.care_team as Array<{ name?: string; specialty?: string; hospital?: string }>)
@@ -171,6 +209,8 @@ export async function POST(request: NextRequest) {
     recent_documents: docsStr,
     biology_alerts: bioAlertsStr,
     care_team: careTeamStr,
+    pending_decisions: pendingDecisionsStr,
+    decided_decisions: decidedDecisionsStr,
     consultation_type,
     doctor_name: doctor_name ?? "non précisé",
     hospital: hospital ?? "non précisé",

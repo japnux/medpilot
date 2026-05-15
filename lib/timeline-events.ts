@@ -17,6 +17,7 @@ import {
   Building2,
   AlertTriangle,
   Circle,
+  GitBranch,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,6 +44,7 @@ export const EVENT_TYPES: Record<EventType, EventTypeMeta> = {
   clinical_trial: { label: "Essai clinique", color: "#ec4899", icon: FlaskConical },
   hospitalization: { label: "Hospitalisation", color: "#dc2626", icon: Building2 },
   emergency: { label: "Urgence", color: "#991b1b", icon: AlertTriangle },
+  decision: { label: "Décision", color: "#7c3aed", icon: GitBranch },
   other: { label: "Autre", color: "#94a3b8", icon: Circle },
 };
 

@@ -135,9 +135,28 @@ Tu produis UNIQUEMENT ce JSON (pas de texte avant ou après) :
       "reason": "pourquoi"
     }
   ],
+  "decisions_required": [
+    {
+      "title": "titre court de la décision (ex: 'Inclusion protocole ADIUVO 2')",
+      "question": "question précise à trancher (ex: 'Accepter la randomisation mitotane vs mitotane+étoposide-cisplatine ?')",
+      "category": "essai_clinique|traitement|examen|surveillance|second_avis|administratif|autre",
+      "priority": "high|normal|low",
+      "due_date": "YYYY-MM-DD ou null si pas d'échéance précise",
+      "options": [
+        {
+          "label": "intitulé court de l'option",
+          "pros": ["points positifs"],
+          "cons": ["points négatifs / risques"],
+          "recommended": true
+        }
+      ]
+    }
+  ],
   "action_required": true,
   "action_details": "si action_required true : décrire l'action urgente"
-}`;
+}
+
+⚠️ "decisions_required" : ne remplis que si le document SOULÈVE EXPLICITEMENT un choix à trancher (inclusion essai, choix traitement, programmer examen optionnel, etc.). Si rien à décider, renvoie [].`;
 
 // -------------------------------------------------------------------
 // Module 3 — Préparation de consultation (Haiku 4.5)
@@ -171,9 +190,17 @@ export const CONSULTATION_PREP_PROMPT = `Tu prépares une consultation médicale
 # Équipe médicale connue du patient
 {{care_team}}
 
+# Décisions en attente (à inscrire à l'ordre du jour du RDV)
+{{pending_decisions}}
+
+# Décisions déjà tranchées (NE PAS reposer en question, juste s'y appuyer)
+{{decided_decisions}}
+
 # Mission
 
 Génère une préparation de RDV utile pour l'accompagnant. Questions précises et directes, classées par thème et priorité. Cite uniquement des médicaments si explicitement présents dans le contexte. Compte tenu du type de consultation ({{consultation_type}}) et du médecin ({{doctor_name}}), priorise les questions qui relèvent de SA spécialité.
+
+Pour les décisions en attente : transforme-les en questions/points à aborder. Pour les décisions tranchées : ne les reposes PAS, mais tu peux poser des questions de suivi ("comment évolue X depuis qu'on a décidé Y").
 
 # Limites strictes de sortie (à respecter)
 - "questions" : 10 max, les plus prioritaires d'abord.
@@ -227,6 +254,26 @@ export interface DocumentAnalysisResult {
     exam: string;
     delay: string;
     reason: string;
+  }>;
+  decisions_required?: Array<{
+    title: string;
+    question: string;
+    category:
+      | "essai_clinique"
+      | "traitement"
+      | "examen"
+      | "surveillance"
+      | "second_avis"
+      | "administratif"
+      | "autre";
+    priority: "high" | "normal" | "low";
+    due_date: string | null;
+    options: Array<{
+      label: string;
+      pros?: string[];
+      cons?: string[];
+      recommended?: boolean;
+    }>;
   }>;
   action_required: boolean;
   action_details: string | null;

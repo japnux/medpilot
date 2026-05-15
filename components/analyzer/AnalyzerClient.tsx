@@ -235,7 +235,26 @@ export default function AnalyzerClient({ familyId, history }: Props) {
         linked_document_id: doc.id,
       });
 
-      // 4. Si c'est un bilan biologique, extraire les valeurs vers biology_records
+      // 4. Décisions soulevées par le document : insère chacune en status=pending
+      if (result.decisions_required && result.decisions_required.length > 0) {
+        const rows = result.decisions_required.map((d) => ({
+          family_id: familyId,
+          title: d.title,
+          question: d.question ?? null,
+          category: d.category ?? "autre",
+          priority: d.priority ?? "normal",
+          due_date: d.due_date ?? null,
+          options: d.options ?? [],
+          status: "pending" as const,
+          source_document_id: doc.id,
+        }));
+        const { error: decErr } = await supabase.from("decisions").insert(rows);
+        if (decErr) {
+          console.warn("Insert decisions échoué (le doc est sauvé)", decErr);
+        }
+      }
+
+      // 5. Si c'est un bilan biologique, extraire les valeurs vers biology_records
       //    + enrichir custom_markers du profil (apparition sur le dashboard)
       if (result.document_type === "biologie") {
         try {

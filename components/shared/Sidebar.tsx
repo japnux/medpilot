@@ -25,6 +25,8 @@ interface NavItem {
   emoji: string;
   /** Sous-menus = onglets de la page (déplie au hover/click). */
   tabs?: Array<{ id: string; label: string }>;
+  /** Badge numérique optionnel (notifications, en attente, …). */
+  badge?: number;
 }
 
 const BIOLOGIE_TABS = [
@@ -53,11 +55,18 @@ interface SidebarProps {
   patientName?: string | null;
   /** True si l'utilisateur est admin global (ADMIN_EMAILS). */
   isAdmin?: boolean;
+  /** Nombre de décisions en attente (affiche un badge sur l'entrée). */
+  pendingDecisionsCount?: number;
 }
 
 const STORAGE_KEY = "medpilot:sidebar:collapsed";
 
-export default function Sidebar({ cancerType, patientName, isAdmin }: SidebarProps) {
+export default function Sidebar({
+  cancerType,
+  patientName,
+  isAdmin,
+  pendingDecisionsCount = 0,
+}: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -89,6 +98,12 @@ export default function Sidebar({ cancerType, patientName, isAdmin }: SidebarPro
       tabs: BIOLOGIE_TABS,
     },
     { href: "/consultation", label: "Consultation", emoji: "🩺" },
+    {
+      href: "/decisions",
+      label: "Décisions",
+      emoji: "🎯",
+      badge: pendingDecisionsCount,
+    },
     { href: "/timeline", label: "Timeline", emoji: "🗓️" },
     { href: "/watch", label: "Veille", emoji: "🔭", tabs: WATCH_TABS_NAV },
   ];
@@ -196,7 +211,21 @@ export default function Sidebar({ cancerType, patientName, isAdmin }: SidebarPro
                   >
                     {item.emoji}
                   </span>
-                  {!collapsed && <span className="truncate">{item.label}</span>}
+                  {!collapsed && (
+                    <>
+                      <span className="truncate flex-1">{item.label}</span>
+                      {typeof item.badge === "number" && item.badge > 0 && (
+                        <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-warning text-canvas text-[10px] font-medium flex items-center justify-center">
+                          {item.badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {collapsed && typeof item.badge === "number" && item.badge > 0 && (
+                    <span className="absolute -mt-3 ml-3 min-w-[14px] h-[14px] px-0.5 rounded-full bg-warning text-canvas text-[9px] font-medium flex items-center justify-center">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
                 {/* Sous-menus = tabs de la page active */}
                 {showSubmenu && (

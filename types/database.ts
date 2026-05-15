@@ -56,6 +56,7 @@ export type EventType =
   | "clinical_trial"
   | "hospitalization"
   | "emergency"
+  | "decision"
   | "other";
 
 export interface Database {
@@ -472,6 +473,62 @@ export interface Database {
           linked_event_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["surveillance_alerts"]["Insert"]>;
+        Relationships: [];
+      };
+      decisions: {
+        Row: {
+          id: string;
+          family_id: string;
+          title: string;
+          question: string | null;
+          category:
+            | "essai_clinique"
+            | "traitement"
+            | "examen"
+            | "surveillance"
+            | "second_avis"
+            | "administratif"
+            | "autre";
+          priority: "high" | "normal" | "low";
+          due_date: string | null;
+          options: unknown;
+          status: "pending" | "decided" | "abandoned" | "na";
+          decided_at: string | null;
+          chosen_option: string | null;
+          rationale: string | null;
+          decided_by: string | null;
+          source_document_id: string | null;
+          source_consultation_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          title: string;
+          question?: string | null;
+          category?:
+            | "essai_clinique"
+            | "traitement"
+            | "examen"
+            | "surveillance"
+            | "second_avis"
+            | "administratif"
+            | "autre";
+          priority?: "high" | "normal" | "low";
+          due_date?: string | null;
+          options?: unknown;
+          status?: "pending" | "decided" | "abandoned" | "na";
+          decided_at?: string | null;
+          chosen_option?: string | null;
+          rationale?: string | null;
+          decided_by?: string | null;
+          source_document_id?: string | null;
+          source_consultation_id?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["decisions"]["Insert"]>;
         Relationships: [];
       };
     };

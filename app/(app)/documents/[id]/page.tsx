@@ -2,7 +2,9 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AnalysisTabs from "@/components/analyzer/AnalysisTabs";
+import DecisionsSection from "@/components/decisions/DecisionsSection";
 import type { DocumentAnalysisResult } from "@/lib/prompts";
+import type { DecisionRow } from "@/lib/decisions";
 import { formatDateFr, formatDateShort } from "@/lib/dates";
 import { ArrowLeft, FileText, Download, User } from "lucide-react";
 
@@ -36,6 +38,14 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   if (!doc) notFound();
 
   const analysis = doc.analysis_summary as unknown as DocumentAnalysisResult | null;
+
+  const { data: decisions } = await supabase
+    .from("decisions")
+    .select("*")
+    .eq("source_document_id", id)
+    .order("status", { ascending: true })
+    .order("priority", { ascending: true })
+    .order("created_at", { ascending: false });
 
   // Si on a un PDF stocké, générer une URL signée (1h) pour le téléchargement
   let downloadUrl: string | null = null;
@@ -105,6 +115,13 @@ export default async function DocumentDetailPage({ params }: PageProps) {
           </p>
         )}
       </header>
+
+      {decisions && decisions.length > 0 && (
+        <DecisionsSection
+          decisions={decisions as unknown as DecisionRow[]}
+          sourceLabel="par ce document"
+        />
+      )}
 
       {analysis ? (
         <AnalysisTabs result={analysis} />
