@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/browser";
 
 const NAV = [
   { href: "/analyzer", label: "Analyser", icon: FileSearch },
-  { href: "/dashboard", label: "Tableau de bord", icon: Activity },
+  { href: "/biologie", label: "Biologie", icon: Activity },
   { href: "/consultation", label: "Consultation", icon: Stethoscope },
   { href: "/timeline", label: "Timeline", icon: History },
 ];

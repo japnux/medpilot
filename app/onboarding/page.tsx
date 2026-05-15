@@ -165,7 +165,7 @@ export default function OnboardingPage() {
         .eq("id", family.id);
       if (updErr) throw updErr;
 
-      router.push("/dashboard");
+      router.push("/biologie");
       router.refresh();
     } catch (e) {
       // Supabase PostgrestError n'est pas instanceof Error mais a .message/.details/.hint

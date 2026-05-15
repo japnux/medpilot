@@ -2,17 +2,21 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { CANCER_PROFILES, type MarkerDef } from "@/lib/cancer-profiles";
 import MarkerCard from "@/components/dashboard/MarkerCard";
-import QuickEntryForm from "@/components/dashboard/QuickEntryForm";
+import BiologyTrendsCard from "@/components/dashboard/BiologyTrendsCard";
 import AlertBanner from "@/components/shared/AlertBanner";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Module 2 — Tableau de bord biologique.
- * Affiche les marqueurs du profil cancer avec leur dernière valeur,
- * leur statut (normal/warning/critical) et un graphique d'évolution.
+ * Module 2 — Biologie.
+ * - Analyse IA des tendances (cachée par famille, invalidée à chaque nouveau bilan)
+ * - Bannière critique si une valeur est en alert_level=critical
+ * - Grid de MarkerCard avec sparklines + delta vs mesure précédente
+ *
+ * Les valeurs proviennent maintenant exclusivement des bilans biologiques
+ * analysés via /analyzer (extraction auto vers biology_records).
  */
-export default async function DashboardPage() {
+export default async function BiologiePage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -36,11 +40,10 @@ export default async function DashboardPage() {
 
   const cancerType = profile?.cancer_type ?? "custom";
   const customMarkers = (profile?.custom_markers as unknown as Record<string, MarkerDef>) ?? {};
-  // Fusion : markers standards du profil cancer + markers ajoutés dynamiquement
-  // depuis les analyses de bilans biologiques. Les custom_markers viennent en
-  // second pour ne pas écraser les seuils thérapeutiques du profil canonique.
   const standardMarkers =
     cancerType === "custom" ? {} : CANCER_PROFILES[cancerType]?.markers ?? {};
+  // Fusion : custom_markers (issus des analyses) en base + markers standards
+  // du profil cancer prioritaires pour préserver les seuils thérapeutiques.
   const markers: Record<string, MarkerDef> = {
     ...customMarkers,
     ...standardMarkers,
@@ -57,8 +60,11 @@ export default async function DashboardPage() {
     .gte("recorded_at", oneYearAgo.toISOString().slice(0, 10))
     .order("recorded_at", { ascending: false });
 
-  // Grouper par marker_name
-  const byMarker: Record<string, Array<{ recorded_at: string; value: number; alert_level: string | null }>> = {};
+  // Grouper par marker_name (records ordonné desc)
+  const byMarker: Record<
+    string,
+    Array<{ recorded_at: string; value: number; alert_level: string | null }>
+  > = {};
   for (const r of records ?? []) {
     if (!byMarker[r.marker_name]) byMarker[r.marker_name] = [];
     byMarker[r.marker_name].push({
@@ -77,10 +83,21 @@ export default async function DashboardPage() {
     }
   }
 
-  const markerEntries = Object.entries(markers);
+  // N'afficher que les marqueurs qui ont au moins une mesure (le reste est bruit)
+  const markersWithData = Object.entries(markers).filter(
+    ([key]) => (byMarker[key]?.length ?? 0) > 0,
+  );
+  const hasAnyData = markersWithData.length > 0;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <header>
+        <h1 className="text-2xl font-semibold text-ink">Biologie</h1>
+        <p className="text-sm text-muted mt-1">
+          Marqueurs biologiques extraits des bilans analysés dans Analyser.
+        </p>
+      </header>
+
       {criticals.length > 0 && (
         <AlertBanner
           title={`Alerte critique sur ${criticals.length} marqueur${criticals.length > 1 ? "s" : ""}`}
@@ -88,30 +105,28 @@ export default async function DashboardPage() {
         />
       )}
 
-      {markerEntries.length === 0 ? (
-        <div className="rounded-xl border border-hairline bg-surface-card p-8 text-center">
-          <p className="text-muted text-sm">
-            Aucun marqueur configuré pour ce profil cancer.
+      {hasAnyData && <BiologyTrendsCard familyId={familyId} />}
+
+      {!hasAnyData ? (
+        <div className="card-feature text-center">
+          <p className="text-sm text-muted">
+            Aucun bilan biologique pour le moment.
           </p>
-          <p className="text-muted text-xs mt-1">
-            Allez dans Paramètres pour personnaliser les marqueurs à suivre.
+          <p className="text-xs text-muted-soft mt-1">
+            Allez dans <span className="text-ink">Analyser</span> pour déposer un compte-rendu de prise de sang.
           </p>
         </div>
       ) : (
-        <>
-          <QuickEntryForm familyId={familyId} markers={markers} />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {markerEntries.map(([key, marker]) => (
-              <MarkerCard
-                key={key}
-                markerKey={key}
-                marker={marker}
-                records={byMarker[key] ?? []}
-              />
-            ))}
-          </div>
-        </>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {markersWithData.map(([key, marker]) => (
+            <MarkerCard
+              key={key}
+              markerKey={key}
+              marker={marker}
+              records={byMarker[key] ?? []}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
