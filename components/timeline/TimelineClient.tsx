@@ -153,8 +153,8 @@ function EventItem({ event }: { event: TimelineEvent }) {
     <article className="relative">
       {/* Dot coloré sur la ligne */}
       <div
-        className="absolute -left-8 top-1.5 w-6 h-6 rounded-full border-2 flex items-center justify-center"
-        style={{ borderColor: meta.color, backgroundColor: "#0d1520" }}
+        className="absolute -left-8 top-1.5 w-6 h-6 rounded-full border-2 flex items-center justify-center bg-canvas"
+        style={{ borderColor: meta.color }}
       >
         <Icon className="w-3 h-3" style={{ color: meta.color }} />
       </div>

@@ -36,10 +36,15 @@ export default async function DashboardPage() {
 
   const cancerType = profile?.cancer_type ?? "custom";
   const customMarkers = (profile?.custom_markers as unknown as Record<string, MarkerDef>) ?? {};
-  const markers: Record<string, MarkerDef> =
-    cancerType === "custom"
-      ? customMarkers
-      : CANCER_PROFILES[cancerType]?.markers ?? {};
+  // Fusion : markers standards du profil cancer + markers ajoutés dynamiquement
+  // depuis les analyses de bilans biologiques. Les custom_markers viennent en
+  // second pour ne pas écraser les seuils thérapeutiques du profil canonique.
+  const standardMarkers =
+    cancerType === "custom" ? {} : CANCER_PROFILES[cancerType]?.markers ?? {};
+  const markers: Record<string, MarkerDef> = {
+    ...customMarkers,
+    ...standardMarkers,
+  };
 
   // Charger l'historique biologique (1 an glissant)
   const oneYearAgo = new Date();

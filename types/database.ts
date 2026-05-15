@@ -154,6 +154,7 @@ export interface Database {
           out_of_range: boolean | null;
           alert_level: AlertLevel | null;
           notes: string | null;
+          source_document_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -166,6 +167,7 @@ export interface Database {
           out_of_range?: boolean | null;
           alert_level?: AlertLevel | null;
           notes?: string | null;
+          source_document_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["biology_records"]["Insert"]>;
         Relationships: [];

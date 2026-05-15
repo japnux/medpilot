@@ -193,6 +193,23 @@ export default function AnalyzerClient({ familyId, history }: Props) {
         linked_document_id: doc.id,
       });
 
+      // 4. Si c'est un bilan biologique, extraire les valeurs vers biology_records
+      //    + enrichir custom_markers du profil (apparition sur le dashboard)
+      if (result.document_type === "biologie") {
+        try {
+          await fetch("/api/biology/extract-from-document", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ document_id: doc.id }),
+          });
+        } catch (extractErr) {
+          console.warn(
+            "Extraction biology depuis le document échouée (le doc est sauvé)",
+            extractErr,
+          );
+        }
+      }
+
       setSaved(true);
       router.refresh();
     } catch (e) {

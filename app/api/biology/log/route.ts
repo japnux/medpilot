@@ -63,10 +63,13 @@ export async function POST(request: NextRequest) {
   const cancerType = profile?.cancer_type ?? "custom";
   const customMarkers =
     (profile?.custom_markers as unknown as Record<string, MarkerDef>) ?? {};
-  const profileMarkers =
-    cancerType === "custom"
-      ? customMarkers
-      : CANCER_PROFILES[cancerType]?.markers ?? {};
+  const standardMarkers =
+    cancerType === "custom" ? {} : CANCER_PROFILES[cancerType]?.markers ?? {};
+  // Fusion : standards prioritaires pour préserver les seuils thérapeutiques canoniques
+  const profileMarkers: Record<string, MarkerDef> = {
+    ...customMarkers,
+    ...standardMarkers,
+  };
 
   // Construire les rangées à insérer
   const rows = measurements.map((m) => {
