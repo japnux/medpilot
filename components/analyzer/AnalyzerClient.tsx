@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import type { DocumentAnalysisResult } from "@/lib/prompts";
 import AnalysisTabs from "./AnalysisTabs";
-import { Upload, FileText, Save } from "lucide-react";
+import { Upload, FileText, Save, Loader2, ChevronRight } from "lucide-react";
+import { formatDateShort } from "@/lib/dates";
 
 interface Props {
   familyId: string;
@@ -205,7 +207,10 @@ export default function AnalyzerClient({ familyId, history }: Props) {
         >
           <Upload className="w-6 h-6 text-slate-500 mx-auto mb-2" />
           {parsingPdf ? (
-            <p className="text-sm text-indigo-300">Lecture du PDF en cours...</p>
+            <p className="text-sm text-indigo-300 flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Lecture du PDF en cours...
+            </p>
           ) : pdfInfo ? (
             <>
               <p className="text-sm text-emerald-300">
@@ -263,14 +268,31 @@ export default function AnalyzerClient({ familyId, history }: Props) {
             disabled={
               analyzing || (text.trim().length < 20 && !pdfInfo?.base64)
             }
-            className="h-10 px-5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm font-medium text-white"
+            className="flex items-center gap-2 h-10 px-5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-sm font-medium text-white"
           >
+            {analyzing && <Loader2 className="w-4 h-4 animate-spin" />}
             {analyzing ? "Analyse en cours…" : "Analyser"}
           </button>
         </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
+
+      {analyzing && (
+        <div className="rounded-xl border border-indigo-700/40 bg-indigo-900/10 p-6 flex items-center gap-4">
+          <Loader2 className="w-6 h-6 text-indigo-400 animate-spin shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-indigo-200">
+              Claude Opus 4.7 analyse le document...
+            </p>
+            <p className="text-xs text-indigo-300/70 mt-0.5">
+              {pdfInfo?.base64
+                ? "Lecture en vision d'un PDF scanné — peut prendre 30 à 60 secondes."
+                : "Analyse en cours — quelques secondes."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {result && (
         <>
@@ -298,14 +320,21 @@ export default function AnalyzerClient({ familyId, history }: Props) {
         ) : (
           <ul className="divide-y divide-slate-800 rounded-xl border border-slate-800 bg-slate-900/40">
             {history.map((d) => (
-              <li key={d.id} className="px-4 py-3 flex items-center gap-3">
-                <FileText className="w-4 h-4 text-slate-500" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white truncate">{d.title}</p>
-                  <p className="text-xs text-slate-500">
-                    {d.document_type} · {d.document_date ?? "date inconnue"}
-                  </p>
-                </div>
+              <li key={d.id}>
+                <Link
+                  href={`/documents/${d.id}`}
+                  className="px-4 py-3 flex items-center gap-3 hover:bg-slate-900/70 transition-colors"
+                >
+                  <FileText className="w-4 h-4 text-slate-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white truncate">{d.title}</p>
+                    <p className="text-xs text-slate-500">
+                      {d.document_type} ·{" "}
+                      {d.document_date ? formatDateShort(d.document_date) : "date inconnue"}
+                    </p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
+                </Link>
               </li>
             ))}
           </ul>
