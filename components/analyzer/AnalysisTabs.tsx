@@ -48,15 +48,15 @@ export default function AnalysisTabs({ result, hideTitle }: Props) {
             )}
           </>
         )}
-        <nav className={`flex gap-1 -mb-px ${hideTitle ? "" : "mt-3"}`}>
+        <nav className={`flex flex-wrap gap-2 pb-4 ${hideTitle ? "" : "mt-3"}`}>
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-3 py-2 text-sm border-b-2 transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
                 tab === t.key
-                  ? "border-ink text-ink"
-                  : "border-transparent text-muted hover:text-ink"
+                  ? "bg-ink text-canvas border-ink"
+                  : "bg-canvas-soft text-body border-hairline hover:bg-surface-card hover:text-ink"
               }`}
             >
               {t.label}

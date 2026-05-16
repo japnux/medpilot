@@ -68,8 +68,8 @@ export default function BiologyTabs({ familyId, markers, byMarker, bilans }: Pro
 
   return (
     <div className="space-y-4">
-      {/* Onglets */}
-      <nav className="flex gap-1 border-b border-hairline">
+      {/* Onglets (pills) */}
+      <nav className="flex flex-wrap gap-2">
         {TABS.map((t) => {
           const active = t.key === tab;
           const Icon = t.icon;
@@ -78,10 +78,10 @@ export default function BiologyTabs({ familyId, markers, byMarker, bilans }: Pro
               key={t.key}
               type="button"
               onClick={() => selectTab(t.key)}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 transition-colors -mb-px ${
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-full border transition-colors ${
                 active
-                  ? "border-primary text-ink"
-                  : "border-transparent text-muted hover:text-ink"
+                  ? "bg-ink text-canvas border-ink"
+                  : "bg-canvas-soft text-body border-hairline hover:bg-surface-card hover:text-ink"
               }`}
             >
               <Icon className="w-4 h-4" />

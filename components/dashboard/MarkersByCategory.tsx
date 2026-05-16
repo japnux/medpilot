@@ -47,17 +47,17 @@ export default function MarkersByCategory({ markers, byMarker }: Props) {
         <p className="text-[10px] uppercase tracking-wider text-muted-soft font-medium mb-3">
           Analyse par catégorie
         </p>
-        <nav className="flex gap-1.5 overflow-x-auto pb-1 -mb-1">
+        <nav className="flex flex-wrap gap-1.5">
           {categories.map((c) => {
             const active = c.key === activeCategory;
             return (
               <button
                 key={c.key}
                 onClick={() => setActiveCategory(c.key)}
-                className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs transition-colors ${
                   active
-                    ? "bg-primary text-on-primary"
-                    : "bg-canvas-soft text-body hover:bg-surface-strong"
+                    ? "bg-ink text-canvas border-ink"
+                    : "bg-canvas-soft text-body border-hairline hover:bg-surface-card hover:text-ink"
                 }`}
               >
                 <span aria-hidden>{c.emoji}</span>

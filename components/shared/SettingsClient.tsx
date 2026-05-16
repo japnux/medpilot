@@ -173,15 +173,15 @@ export default function SettingsClient({
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <h1 className="text-2xl font-semibold text-ink">Paramètres</h1>
 
-      <nav className="flex gap-1 border-b border-hairline">
+      <nav className="flex flex-wrap gap-2">
         {(["profile", "team", "members"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-2 text-sm border-b-2 ${
+            className={`inline-flex items-center px-3 py-1.5 text-sm rounded-full border transition-colors ${
               tab === t
-                ? "border-ink text-ink"
-                : "border-transparent text-muted hover:text-ink"
+                ? "bg-ink text-canvas border-ink"
+                : "bg-canvas-soft text-body border-hairline hover:bg-surface-card hover:text-ink"
             }`}
           >
             {t === "profile" ? "Profil cancer" : t === "team" ? "Équipe médicale" : "Membres famille"}
