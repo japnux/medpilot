@@ -6,11 +6,13 @@ import { ThumbsUp, AlertCircle, Stethoscope, FileText, Copy, Check } from "lucid
 
 interface Props {
   result: DocumentAnalysisResult;
+  /** Masque le titre/date dans le header (utile quand le parent les affiche déjà). */
+  hideTitle?: boolean;
 }
 
 type Tab = "family" | "clinical" | "points" | "questions";
 
-export default function AnalysisTabs({ result }: Props) {
+export default function AnalysisTabs({ result, hideTitle }: Props) {
   const [tab, setTab] = useState<Tab>("family");
   const [copied, setCopied] = useState(false);
 
@@ -36,13 +38,17 @@ export default function AnalysisTabs({ result }: Props) {
   return (
     <div className="rounded-xl border border-hairline bg-surface-card overflow-hidden">
       <header className="border-b border-hairline px-4 pt-4">
-        <h2 className="text-base font-medium text-ink">{result.title}</h2>
-        {result.document_date && (
-          <p className="text-xs text-muted mt-1">
-            Daté du {result.document_date}
-          </p>
+        {!hideTitle && (
+          <>
+            <h2 className="text-base font-medium text-ink">{result.title}</h2>
+            {result.document_date && (
+              <p className="text-xs text-muted mt-1">
+                Daté du {result.document_date}
+              </p>
+            )}
+          </>
         )}
-        <nav className="flex gap-1 -mb-px mt-3">
+        <nav className={`flex gap-1 -mb-px ${hideTitle ? "" : "mt-3"}`}>
           {tabs.map((t) => (
             <button
               key={t.key}

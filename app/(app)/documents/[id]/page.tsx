@@ -79,44 +79,49 @@ export default async function DocumentDetailPage({ params }: PageProps) {
       </Link>
 
       <header className="space-y-3">
-        <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-orange-700" />
-          <span className="badge-pill">{doc.document_type}</span>
-        </div>
-        <h1 className="text-2xl font-semibold text-ink">{doc.title}</h1>
-
-        <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-          <span>
-            {doc.document_date
-              ? formatDateShort(doc.document_date)
-              : "Date inconnue"}
-          </span>
-          {doc.doctor_name && (
-            <>
-              <span className="text-muted-soft">·</span>
-              <span className="inline-flex items-center gap-1">
-                <User className="w-3.5 h-3.5" />
-                {doc.doctor_name}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-orange-700 shrink-0" />
+              <span className="badge-pill">{doc.document_type}</span>
+            </div>
+            <h1 className="text-lg md:text-xl font-semibold text-ink break-words">
+              {doc.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+              <span>
+                {doc.document_date
+                  ? formatDateShort(doc.document_date)
+                  : "Date inconnue"}
               </span>
-            </>
-          )}
-          <span className="text-muted-soft">·</span>
-          <span>analysé le {formatDateFr(doc.created_at)}</span>
-          {decisions && decisions.length > 0 && (
-            <>
+              {doc.doctor_name && (
+                <>
+                  <span className="text-muted-soft">·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <User className="w-3.5 h-3.5" />
+                    {doc.doctor_name}
+                  </span>
+                </>
+              )}
               <span className="text-muted-soft">·</span>
-              <span className="inline-flex items-center gap-1 text-purple-600">
-                <GitBranch className="w-3.5 h-3.5" />
-                {decisions.filter((d) => d.status === "pending").length}/
-                {decisions.length} décision
-                {decisions.length > 1 ? "s" : ""}
-              </span>
-            </>
-          )}
+              <span>analysé le {formatDateFr(doc.created_at)}</span>
+              {decisions && decisions.length > 0 && (
+                <>
+                  <span className="text-muted-soft">·</span>
+                  <span className="inline-flex items-center gap-1 text-purple-600">
+                    <GitBranch className="w-3.5 h-3.5" />
+                    {decisions.filter((d) => d.status === "pending").length}/
+                    {decisions.length} décision
+                    {decisions.length > 1 ? "s" : ""}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
           {downloadUrl && (
             <a
               href={downloadUrl}
-              className="ml-auto btn-outline text-xs h-9 px-4"
+              className="btn-outline text-xs h-9 px-4 shrink-0"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -138,6 +143,16 @@ export default async function DocumentDetailPage({ params }: PageProps) {
         )}
       </header>
 
+      {analysis ? (
+        <AnalysisTabs result={analysis} hideTitle />
+      ) : (
+        <div className="rounded-xl border border-hairline bg-surface-card p-6 text-center">
+          <p className="text-sm text-muted">
+            Aucune analyse Claude disponible pour ce document.
+          </p>
+        </div>
+      )}
+
       {decisions && decisions.length > 0 && (
         <DecisionsSection
           decisions={decisions as unknown as DecisionRow[]}
@@ -149,16 +164,6 @@ export default async function DocumentDetailPage({ params }: PageProps) {
             doctor_name: c.doctor_name,
           }))}
         />
-      )}
-
-      {analysis ? (
-        <AnalysisTabs result={analysis} />
-      ) : (
-        <div className="rounded-xl border border-hairline bg-surface-card p-6 text-center">
-          <p className="text-sm text-muted">
-            Aucune analyse Claude disponible pour ce document.
-          </p>
-        </div>
       )}
 
       {doc.raw_text && !doc.raw_text.startsWith("[PDF scanné") && (
