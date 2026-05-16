@@ -40,11 +40,20 @@ export default async function AppLayout({
       .eq("status", "active"),
   ]);
 
-  const { count: pendingDecisionsCount } = await supabase
-    .from("decisions")
-    .select("id", { count: "exact", head: true })
-    .eq("family_id", membership.family_id)
-    .eq("status", "pending");
+  const [{ count: pendingDecisionsCount }, { count: criticalSymptomsCount }] =
+    await Promise.all([
+      supabase
+        .from("decisions")
+        .select("id", { count: "exact", head: true })
+        .eq("family_id", membership.family_id)
+        .eq("status", "pending"),
+      supabase
+        .from("symptom_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("family_id", membership.family_id)
+        .eq("is_critical", true)
+        .eq("is_resolved", false),
+    ]);
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -54,6 +63,7 @@ export default async function AppLayout({
         isAdmin={isAdminEmail(user.email)}
         pendingDecisionsCount={pendingDecisionsCount ?? 0}
         medicationsActiveCount={medicationsActiveCount ?? 0}
+        criticalSymptomsCount={criticalSymptomsCount ?? 0}
       />
       <div className="flex-1 flex flex-col min-w-0">
         <main className="flex-1 overflow-auto">{children}</main>

@@ -290,12 +290,31 @@ export interface Database {
           family_id: string;
           logged_at: string;
           logged_by: string | null;
+          // Anciennes colonnes (legacy, gardées pour compat)
           digestif: number | null;
           neuro: number | null;
           fatigue: number | null;
           douleur: number | null;
           autres: Json | null;
           notes: string | null;
+          // Nouveau schéma riche (migration 0014)
+          category: string | null;
+          symptom_type: string | null;
+          symptom_label: string | null;
+          severity: number | null;
+          numeric_value: number | null;
+          numeric_value_2: number | null;
+          numeric_unit: string | null;
+          wellbeing_score: number | null;
+          duration_minutes: number | null;
+          context: string[] | null;
+          linked_medication_id: string | null;
+          is_resolved: boolean;
+          resolved_at: string | null;
+          is_critical: boolean;
+          red_flag_matched: string | null;
+          matched_keywords: string[] | null;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -308,6 +327,22 @@ export interface Database {
           douleur?: number | null;
           autres?: Json | null;
           notes?: string | null;
+          category?: string | null;
+          symptom_type?: string | null;
+          symptom_label?: string | null;
+          severity?: number | null;
+          numeric_value?: number | null;
+          numeric_value_2?: number | null;
+          numeric_unit?: string | null;
+          wellbeing_score?: number | null;
+          duration_minutes?: number | null;
+          context?: string[] | null;
+          linked_medication_id?: string | null;
+          is_resolved?: boolean;
+          resolved_at?: string | null;
+          is_critical?: boolean;
+          red_flag_matched?: string | null;
+          matched_keywords?: string[] | null;
         };
         Update: Partial<Database["public"]["Tables"]["symptom_logs"]["Insert"]>;
         Relationships: [];

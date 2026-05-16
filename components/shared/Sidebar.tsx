@@ -59,6 +59,8 @@ interface SidebarProps {
   pendingDecisionsCount?: number;
   /** Nombre de médicaments actifs (badge sur l'entrée Médicaments). */
   medicationsActiveCount?: number;
+  /** Nombre de symptômes critiques non résolus (badge rouge sur Symptômes). */
+  criticalSymptomsCount?: number;
 }
 
 const STORAGE_KEY = "medpilot:sidebar:collapsed";
@@ -69,6 +71,7 @@ export default function Sidebar({
   isAdmin,
   pendingDecisionsCount = 0,
   medicationsActiveCount,
+  criticalSymptomsCount = 0,
 }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -112,6 +115,12 @@ export default function Sidebar({
       label: "Médicaments",
       emoji: "💊",
       badge: medicationsActiveCount,
+    },
+    {
+      href: "/symptoms",
+      label: "Symptômes",
+      emoji: "🌡️",
+      badge: criticalSymptomsCount > 0 ? criticalSymptomsCount : undefined,
     },
     { href: "/timeline", label: "Timeline", emoji: "🗓️" },
     { href: "/watch", label: "Veille", emoji: "🔭", tabs: WATCH_TABS_NAV },

@@ -9,6 +9,7 @@ import {
   interpolate,
   type ConsultationPrepResult,
 } from "@/lib/prompts";
+import { buildSymptomContext } from "@/lib/symptom-context";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -224,6 +225,9 @@ export async function POST(request: NextRequest) {
     : "";
   const careTeamStr = careTeam ? `- ${careTeam}` : "non renseignée";
 
+  // Symptômes & effets indésirables des 14 derniers jours (top 5 + criticals)
+  const symptomsStr = await buildSymptomContext(supabase, family_id, 14);
+
   // Contexte d'interpolation enrichi
   const baseCtx = buildPromptContext(profile);
   const ctx = {
@@ -237,6 +241,7 @@ export async function POST(request: NextRequest) {
     pending_decisions: pendingDecisionsStr,
     decided_decisions: decidedDecisionsStr,
     awaiting_for_this_consult: awaitingForConsultStr,
+    recent_symptoms: symptomsStr,
     consultation_type,
     doctor_name: doctor_name ?? "non précisé",
     hospital: hospital ?? "non précisé",

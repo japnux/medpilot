@@ -187,6 +187,9 @@ export const CONSULTATION_PREP_PROMPT = `Tu prépares une consultation médicale
 # Bilan biologique récent (valeurs préoccupantes uniquement)
 {{biology_alerts}}
 
+# Symptômes & effets indésirables (14 derniers jours, top 5 par fréquence + criticals)
+{{recent_symptoms}}
+
 # Équipe médicale connue du patient
 {{care_team}}
 
