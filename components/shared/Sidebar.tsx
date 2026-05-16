@@ -132,8 +132,8 @@ export default function Sidebar({
     router.refresh();
   }
 
-  // Largeur dynamique
-  const widthClass = collapsed ? "w-14" : "w-60";
+  // Largeur dynamique côté desktop uniquement. Sur mobile, l'overlay impose w-72.
+  const widthClassDesktop = collapsed ? "md:w-14" : "md:w-60";
 
   return (
     <>
@@ -157,11 +157,19 @@ export default function Sidebar({
         />
       )}
 
-      {/* Sidebar (desktop fixed, mobile overlay) */}
+      {/* Sidebar :
+            - Mobile fermé  → hidden
+            - Mobile ouvert → overlay fixed plein écran (h-[100dvh] gère la barre d'URL iOS,
+              safe-area bottom évite que la déco/réglages soient masqués par le home indicator)
+            - Desktop (md+) → sticky dans le flux, largeur dynamique selon collapsed */}
       <aside
-        className={`flex flex-col border-r border-hairline bg-canvas-soft p-3 sticky top-0 h-screen transition-all
-          ${widthClass}
-          ${mobileOpen ? "fixed inset-y-0 left-0 z-50 w-64 md:relative md:w-auto" : "hidden md:flex"}
+        className={`flex-col border-r border-hairline bg-canvas-soft p-3 transition-all
+          md:flex md:sticky md:top-0 md:h-screen ${widthClassDesktop}
+          ${
+            mobileOpen
+              ? "flex fixed inset-y-0 left-0 z-50 w-72 h-[100dvh] pb-[env(safe-area-inset-bottom)]"
+              : "hidden"
+          }
         `}
       >
         {/* En-tête : identité patient + bouton collapse */}
