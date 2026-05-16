@@ -38,10 +38,13 @@ export default async function ChangelogPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // RLS filtre déjà user_visible=true
+  // RLS filtre déjà user_visible=true, mais on filtre aussi category='internal'
+  // pour la défense en profondeur : les commits purement techniques (build,
+  // sync admin, CI, types) ne doivent jamais apparaître ici.
   const { data: entries } = await supabase
     .from("changelog_entries")
     .select("id, title, summary, category, published_at")
+    .neq("category", "internal")
     .order("published_at", { ascending: false })
     .limit(200);
 

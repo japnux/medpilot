@@ -168,9 +168,26 @@ Pour chaque commit, génère un changelog user-friendly destiné aux utilisateur
 Règles :
 - title : phrase courte (≤ 70 caractères), claire, sans jargon technique, sans nom de fichier, sans préfixe technique (pas de "Fix", "Refacto"…). Ex: "Suivi quotidien des symptômes amélioré".
 - summary : 1 phrase qui explique l'apport pour l'utilisateur (≤ 200 caractères). null si trivial.
-- category : "feature" (nouvelle fonctionnalité visible), "improvement" (amélioration UX/perf visible), "fix" (correction de bug visible), "internal" (technique non visible : refacto, clean code, types, build).
-- user_visible : false pour les commits purement techniques (refacto, types, dépendances, fix linter, doc, tests, CI, infrastructure). True si l'utilisateur peut percevoir un changement.
+- category :
+  * "feature" — nouvelle fonctionnalité visible côté utilisateur
+  * "improvement" — amélioration UX/perf perceptible par l'utilisateur
+  * "fix" — correction d'un bug que l'utilisateur a pu rencontrer
+  * "internal" — TOUT le reste (voir liste exhaustive ci-dessous)
+- user_visible : true SEULEMENT si l'utilisateur final (non-technique) peut clairement percevoir et apprécier le changement dans son usage quotidien. false sinon.
 - Garde le commit_sha tel quel.
+
+⚠️ TOUJOURS category='internal' ET user_visible=false pour :
+- Refactor, clean code, renommage, déplacement de fichiers
+- Types TypeScript, regen types, fix lint, format
+- Build, npm, dépendances, package.json, lockfile
+- CI/CD, GitHub Actions, déploiement, Vercel config
+- Tests, mocks, fixtures, doc interne (CLAUDE.md, AGENTS.md)
+- Outils admin pour Geoffrey lui-même (sync-changelog, scripts /tmp,
+  console admin /admin, logs, audit, KB regen interne)
+- Migrations BDD seules (sans feature visible associée)
+- Hooks, helpers, libs internes qui n'apparaissent pas dans l'UI
+
+En cas de doute (ex: "amélioration UX d'un bouton admin"), préfère internal.
 
 Réponds UNIQUEMENT en JSON, format :
 { "entries": [ { "commit_sha": "abc...", "title": "...", "summary": "..." | null, "category": "feature|improvement|fix|internal", "user_visible": true|false }, ... ] }`;
