@@ -6,7 +6,7 @@ import DecisionsSection from "@/components/decisions/DecisionsSection";
 import type { DocumentAnalysisResult } from "@/lib/prompts";
 import type { DecisionRow } from "@/lib/decisions";
 import { formatDateFr, formatDateShort } from "@/lib/dates";
-import { ArrowLeft, FileText, Download, User } from "lucide-react";
+import { ArrowLeft, FileText, Download, User, GitBranch } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +102,17 @@ export default async function DocumentDetailPage({ params }: PageProps) {
           )}
           <span className="text-muted-soft">·</span>
           <span>analysé le {formatDateFr(doc.created_at)}</span>
+          {decisions && decisions.length > 0 && (
+            <>
+              <span className="text-muted-soft">·</span>
+              <span className="inline-flex items-center gap-1 text-purple-600">
+                <GitBranch className="w-3.5 h-3.5" />
+                {decisions.filter((d) => d.status === "pending").length}/
+                {decisions.length} décision
+                {decisions.length > 1 ? "s" : ""}
+              </span>
+            </>
+          )}
           {downloadUrl && (
             <a
               href={downloadUrl}

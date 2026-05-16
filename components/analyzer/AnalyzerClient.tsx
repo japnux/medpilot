@@ -236,7 +236,22 @@ export default function AnalyzerClient({ familyId, history }: Props) {
       });
 
       // 4. Décisions soulevées par le document : insère chacune en status=pending
+      //    avec recommendation_source pointant vers ce document (label + id +
+      //    confidence high : la décision provient d'un doc signé).
       if (result.decisions_required && result.decisions_required.length > 0) {
+        const sourceLabel = [
+          result.title,
+          result.document_date ?? null,
+          result.doctor_name ?? null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        const recommendationSource = {
+          type: "document" as const,
+          source_id: doc.id,
+          source_label: sourceLabel,
+          confidence: "high" as const,
+        };
         const rows = result.decisions_required.map((d) => ({
           family_id: familyId,
           title: d.title,
@@ -247,6 +262,7 @@ export default function AnalyzerClient({ familyId, history }: Props) {
           options: d.options ?? [],
           status: "pending" as const,
           source_document_id: doc.id,
+          recommendation_source: recommendationSource,
         }));
         const { error: decErr } = await supabase.from("decisions").insert(rows);
         if (decErr) {

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import type { ConsultationPrepResult } from "@/lib/prompts";
 import { formatDateFr } from "@/lib/dates";
-import { CheckCircle, ArrowLeft } from "lucide-react";
+import { CheckCircle, ArrowLeft, GitBranch } from "lucide-react";
 import Link from "next/link";
 
 interface Consultation {
@@ -24,9 +24,14 @@ interface Consultation {
 
 interface Props {
   consultation: Consultation;
+  /** Compteur affiché en header : { pending, total } décisions liées. */
+  decisionCounts?: { pending: number; total: number };
 }
 
-export default function DuringConsultClient({ consultation }: Props) {
+export default function DuringConsultClient({
+  consultation,
+  decisionCounts,
+}: Props) {
   const router = useRouter();
   const [notes, setNotes] = useState(consultation.notes_during ?? "");
   const [decisions, setDecisions] = useState<string[]>(
@@ -143,6 +148,19 @@ export default function DuringConsultClient({ consultation }: Props) {
           {formatDateFr(consultation.consultation_date)}
           {consultation.doctor_name && ` · ${consultation.doctor_name}`}
           {consultation.hospital && ` · ${consultation.hospital}`}
+          {decisionCounts && decisionCounts.total > 0 && (
+            <>
+              {" · "}
+              <a
+                href="#decisions-section"
+                className="inline-flex items-center gap-1 text-purple-600 hover:underline"
+              >
+                <GitBranch className="w-3.5 h-3.5" />
+                {decisionCounts.pending}/{decisionCounts.total} décision
+                {decisionCounts.total > 1 ? "s" : ""}
+              </a>
+            </>
+          )}
         </p>
       </header>
 
