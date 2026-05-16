@@ -107,6 +107,8 @@ Tu produis UNIQUEMENT ce JSON (pas de texte avant ou après) :
   "document_date": "YYYY-MM-DD ou null",
   "title": "titre court du document",
   "doctor_name": "nom du médecin principal signataire ou null si non visible (ex: Dr Thomas Volosov, Pr Eric Baudin). En cas de plusieurs signataires, prendre le plus mis en avant.",
+  "doctor_specialty": "spécialité du médecin si visible (ex: oncologie, endocrinologie, anatomopathologie, radiologie, chirurgie viscérale, hématologie, génétique) ou null",
+  "doctor_hospital": "établissement / service du médecin si visible (ex: CHU Toulouse Rangueil, Institut Gustave Roussy, Cabinet de ville Lyon) ou null",
   "summary_family": "3-4 phrases simples, sans jargon médical, pour un proche non médecin",
   "summary_clinical": "synthèse clinique complète pour l'accompagnant, interprétée par rapport au profil du patient",
   "key_values": [
@@ -241,6 +243,8 @@ export interface DocumentAnalysisResult {
   document_date: string | null;
   title: string;
   doctor_name: string | null;
+  doctor_specialty?: string | null;
+  doctor_hospital?: string | null;
   summary_family: string;
   summary_clinical: string;
   key_values: Array<{

@@ -235,7 +235,42 @@ export default function AnalyzerClient({ familyId, history }: Props) {
         linked_document_id: doc.id,
       });
 
-      // 4. Décisions soulevées par le document : insère chacune en status=pending
+      // 4. Care team auto : si le doc a un médecin, l'upsert dans cancer_profiles.care_team
+      //    (dédupe par nom normalisé, enrichit specialty/hospital si absents).
+      if (result.doctor_name && result.doctor_name.trim()) {
+        try {
+          const { upsertCareTeamMember } = await import("@/lib/care-team");
+          const { data: profile } = await supabase
+            .from("cancer_profiles")
+            .select("id, care_team")
+            .eq("family_id", familyId)
+            .maybeSingle();
+          if (profile) {
+            const current = Array.isArray(profile.care_team)
+              ? (profile.care_team as Array<{
+                  name: string;
+                  specialty?: string;
+                  hospital?: string;
+                }>)
+              : [];
+            const { careTeam: next, changed } = upsertCareTeamMember(current, {
+              name: result.doctor_name,
+              specialty: result.doctor_specialty ?? undefined,
+              hospital: result.doctor_hospital ?? undefined,
+            });
+            if (changed) {
+              await supabase
+                .from("cancer_profiles")
+                .update({ care_team: JSON.parse(JSON.stringify(next)) })
+                .eq("id", profile.id);
+            }
+          }
+        } catch (careErr) {
+          console.warn("Upsert care_team échoué (doc sauvé quand même)", careErr);
+        }
+      }
+
+      // 5. Décisions soulevées par le document : insère chacune en status=pending
       //    avec recommendation_source pointant vers ce document (label + id +
       //    confidence high : la décision provient d'un doc signé).
       if (result.decisions_required && result.decisions_required.length > 0) {
@@ -270,7 +305,7 @@ export default function AnalyzerClient({ familyId, history }: Props) {
         }
       }
 
-      // 5. Si c'est un bilan biologique, extraire les valeurs vers biology_records
+      // 6. Si c'est un bilan biologique, extraire les valeurs vers biology_records
       //    + enrichir custom_markers du profil (apparition sur le dashboard)
       if (result.document_type === "biologie") {
         try {
