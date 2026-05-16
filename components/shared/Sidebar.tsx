@@ -16,6 +16,7 @@ import {
   X,
   ShieldCheck,
   Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -314,6 +315,19 @@ export default function Sidebar({
               {!collapsed && <span>Admin</span>}
             </Link>
           )}
+          <Link
+            href="/help"
+            onClick={() => setMobileOpen(false)}
+            title={collapsed ? "Aide" : undefined}
+            className={`flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-colors ${
+              pathname.startsWith("/help")
+                ? "bg-surface-card text-ink"
+                : "text-body hover:text-ink hover:bg-surface-card"
+            } ${collapsed ? "justify-center" : ""}`}
+          >
+            <HelpCircle className="w-4 h-4 shrink-0" />
+            {!collapsed && <span>Aide</span>}
+          </Link>
           <Link
             href="/settings"
             onClick={() => setMobileOpen(false)}
