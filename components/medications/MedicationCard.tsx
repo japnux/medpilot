@@ -202,13 +202,13 @@ export default function MedicationCard({
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-muted hover:text-red-700 hover:bg-red-50 ml-auto"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-muted hover:text-red-700 hover:bg-red-50 md:ml-auto"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Supprimer
           </button>
         ) : (
-          <div className="ml-auto inline-flex items-center gap-2 text-xs">
+          <div className="md:ml-auto inline-flex items-center gap-2 text-xs">
             <span className="text-muted">Confirmer ?</span>
             <button
               type="button"

@@ -66,7 +66,8 @@ export default async function AppLayout({
         criticalSymptomsCount={criticalSymptomsCount ?? 0}
       />
       <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 overflow-auto">{children}</main>
+        {/* pt-14 sur mobile : réserve l'espace pour le burger fixed top-left */}
+        <main className="flex-1 overflow-auto pt-14 md:pt-0">{children}</main>
       </div>
     </div>
   );
