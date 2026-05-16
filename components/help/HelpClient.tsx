@@ -704,7 +704,7 @@ export default function HelpClient() {
   ];
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-8 pr-12 md:pr-6">
+    <div className="p-6 max-w-3xl mx-auto space-y-8">
       <header>
         <div className="flex items-center gap-2 mb-2">
           <HelpCircle className="w-5 h-5 text-purple-600" />

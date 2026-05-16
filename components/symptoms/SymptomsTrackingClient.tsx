@@ -118,7 +118,7 @@ export default function SymptomsTrackingClient({ familyId, symptoms }: Props) {
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
-      <header className="flex items-start justify-between gap-2 pr-12 md:pr-0">
+      <header className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold text-ink">Symptômes</h1>
           <p className="text-sm text-muted mt-1">

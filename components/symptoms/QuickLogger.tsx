@@ -125,15 +125,26 @@ export default function QuickLogger({ familyId, catalog }: Props) {
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
-      <header className="pr-12 md:pr-0">
-        <h1 className="text-2xl font-semibold text-ink">Check-in</h1>
-        <p className="text-sm text-muted mt-1">
-          {new Date().toLocaleDateString("fr-FR", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-          })}
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-semibold text-ink">Check-in</h1>
+          <p className="text-sm text-muted mt-1">
+            {new Date().toLocaleDateString("fr-FR", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => router.push("/symptoms")}
+          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-sm text-muted hover:text-ink hover:bg-surface-card"
+          aria-label="Fermer le check-in"
+        >
+          <X className="w-4 h-4" />
+          <span className="hidden sm:inline">Fermer</span>
+        </button>
       </header>
 
       {/* Score bien-être */}

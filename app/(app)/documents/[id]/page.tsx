@@ -79,7 +79,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
       </Link>
 
       <header className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-orange-700 shrink-0" />
@@ -87,10 +87,11 @@ export default async function DocumentDetailPage({ params }: PageProps) {
             </div>
             {/* Suffix `!` : la règle globale `h1 { font-size: 48px }` dans
                 globals.css est hors @layer et bat les utilitaires Tailwind sans
-                ça. line-clamp-2 cape les titres très longs (ellipsis), title
-                attribut pour l'accessibilité. */}
+                ça. Pas de line-clamp : sur mobile, le titre prend autant de
+                lignes que nécessaire ; le bouton Télécharger passe en dessous
+                grâce au flex-col mobile. */}
             <h1
-              className="text-lg! md:text-xl! leading-snug! font-semibold text-ink line-clamp-2"
+              className="text-lg! md:text-xl! leading-snug! font-semibold text-ink"
               title={doc.title}
             >
               {doc.title}
@@ -128,7 +129,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
           {downloadUrl && (
             <a
               href={downloadUrl}
-              className="btn-outline text-xs h-9 px-4 shrink-0"
+              className="btn-outline text-xs h-9 px-4 self-start shrink-0"
               target="_blank"
               rel="noopener noreferrer"
             >
