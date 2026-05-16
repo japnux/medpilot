@@ -26,19 +26,34 @@ export default async function MedicationsPage() {
 
   const familyId = membership.family_id;
 
-  const [{ data: profile }, { data: medications }] = await Promise.all([
-    supabase
-      .from("cancer_profiles")
-      .select("patient_first_name, care_team")
-      .eq("family_id", familyId)
-      .maybeSingle(),
-    supabase
-      .from("medications")
-      .select("*")
-      .eq("family_id", familyId)
-      .order("status", { ascending: true })
-      .order("started_at", { ascending: false, nullsFirst: false }),
-  ]);
+  const [{ data: profile }, { data: medications }, { data: dosageChanges }] =
+    await Promise.all([
+      supabase
+        .from("cancer_profiles")
+        .select("patient_first_name, care_team")
+        .eq("family_id", familyId)
+        .maybeSingle(),
+      supabase
+        .from("medications")
+        .select("*")
+        .eq("family_id", familyId)
+        .order("status", { ascending: true })
+        .order("started_at", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("medication_dosage_changes")
+        .select("*")
+        .eq("family_id", familyId)
+        .order("changed_at", { ascending: false }),
+    ]);
+
+  // Map dosageChanges par medication_id pour le passer aux cartes.
+  type DosageChange = NonNullable<typeof dosageChanges>[number];
+  const dosageChangesByMed: Record<string, DosageChange[]> = {};
+  for (const c of dosageChanges ?? []) {
+    const list = dosageChangesByMed[c.medication_id] ?? [];
+    list.push(c);
+    dosageChangesByMed[c.medication_id] = list;
+  }
 
   // care_team est en JSONB libre : on garde uniquement les entrées avec un nom.
   const careTeam = Array.isArray(profile?.care_team)
@@ -55,6 +70,7 @@ export default async function MedicationsPage() {
       initialMedications={medications ?? []}
       patientFirstName={profile?.patient_first_name ?? null}
       careTeam={careTeam}
+      dosageChangesByMed={dosageChangesByMed}
     />
   );
 }

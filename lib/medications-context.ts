@@ -95,12 +95,37 @@ export async function enrichWithMedications(
   supabase: SupabaseClient<Database>,
   familyId: string,
 ): Promise<string> {
-  const { data } = await supabase
-    .from("medications")
-    .select("*")
-    .eq("family_id", familyId)
-    .order("status", { ascending: true })
-    .order("started_at", { ascending: false });
+  const [{ data: meds }, { data: changes }] = await Promise.all([
+    supabase
+      .from("medications")
+      .select("*")
+      .eq("family_id", familyId)
+      .order("status", { ascending: true })
+      .order("started_at", { ascending: false }),
+    // Derniers 6 changements de dose, contexte clinique utile
+    supabase
+      .from("medication_dosage_changes")
+      .select("medication_id, changed_at, previous_dosage, new_dosage, reason, prescriber")
+      .eq("family_id", familyId)
+      .order("changed_at", { ascending: false })
+      .limit(6),
+  ]);
 
-  return buildMedicationsContextBlock(data ?? []);
+  let block = buildMedicationsContextBlock(meds ?? []);
+  if (changes && changes.length > 0 && meds && meds.length > 0) {
+    const nameById = new Map(meds.map((m) => [m.id, m.name]));
+    block += `\n\n## Derniers ajustements de dose\n\n`;
+    block += changes
+      .map((c) => {
+        const name = nameById.get(c.medication_id) ?? "Médicament";
+        const date = new Date(c.changed_at).toLocaleDateString("fr-FR");
+        const delta = `${c.previous_dosage ?? "?"} → ${c.new_dosage}`;
+        const tail = [c.reason, c.prescriber ? `Dr ${c.prescriber}` : null]
+          .filter(Boolean)
+          .join(" · ");
+        return `- ${date} · **${name}** : ${delta}${tail ? ` (${tail})` : ""}`;
+      })
+      .join("\n");
+  }
+  return block;
 }

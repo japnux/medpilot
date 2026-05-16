@@ -12,20 +12,24 @@ import {
   ChevronDown,
   ChevronRight,
   AlertCircle,
+  TrendingUp,
 } from "lucide-react";
 import MedicationStatusBadge from "./MedicationStatusBadge";
+import DosageHistory from "./DosageHistory";
 import {
   formatDateFR,
-  formatPosologyInline,
   getRouteLabel,
   type Medication,
 } from "@/lib/medications-helpers";
+import type { DosageChangeRow } from "@/lib/medication-dosage-helpers";
 
 interface Props {
   medication: Medication;
+  dosageChanges?: DosageChangeRow[];
   onEdit: (m: Medication) => void;
   onStop: (m: Medication) => void;
   onDelete: (m: Medication) => void;
+  onChangeDosage?: (m: Medication) => void;
 }
 
 /**
@@ -44,9 +48,11 @@ function getLinks(m: Medication): { label: string; url: string }[] {
 
 export default function MedicationCard({
   medication: m,
+  dosageChanges = [],
   onEdit,
   onStop,
   onDelete,
+  onChangeDosage,
 }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [sideOpen, setSideOpen] = useState(false);
@@ -138,6 +144,11 @@ export default function MedicationCard({
         </div>
       )}
 
+      {/* Historique des doses (replié par défaut) */}
+      {dosageChanges.length > 0 && (
+        <DosageHistory changes={dosageChanges} />
+      )}
+
       {/* Liens officiels */}
       {links.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -166,6 +177,17 @@ export default function MedicationCard({
           <Pencil className="w-3.5 h-3.5" />
           Éditer
         </button>
+        {m.status === "active" && onChangeDosage && (
+          <button
+            type="button"
+            onClick={() => onChangeDosage(m)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-body hover:text-ink hover:bg-surface-card"
+            title="Enregistrer un changement de dose"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            Modifier la dose
+          </button>
+        )}
         {m.status === "active" && (
           <button
             type="button"

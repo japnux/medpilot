@@ -11,6 +11,8 @@ import type { MedicationStatus } from "@/types/database";
 import MedicationsList from "./MedicationsList";
 import MedicationForm, { type CareTeamMember } from "./MedicationForm";
 import EmptyMedicationsState from "./EmptyMedicationsState";
+import DosageChangeModal from "./DosageChangeModal";
+import type { DosageChangeRow } from "@/lib/medication-dosage-helpers";
 
 type Filter = "active" | "all" | "stopped" | "planned" | "paused";
 
@@ -27,6 +29,7 @@ interface Props {
   initialMedications: Medication[];
   patientFirstName: string | null;
   careTeam: CareTeamMember[];
+  dosageChangesByMed: Record<string, DosageChangeRow[]>;
 }
 
 export default function MedicationsClient({
@@ -34,6 +37,7 @@ export default function MedicationsClient({
   initialMedications,
   patientFirstName,
   careTeam,
+  dosageChangesByMed,
 }: Props) {
   const { medications, setMedications } = useMedications(
     familyId,
@@ -43,6 +47,12 @@ export default function MedicationsClient({
   const [editing, setEditing] = useState<Medication | null>(null);
   const [creating, setCreating] = useState<{ defaultStatus: MedicationStatus } | null>(
     null,
+  );
+  const [dosageChanging, setDosageChanging] = useState<Medication | null>(null);
+
+  const careTeamNames = useMemo(
+    () => careTeam.map((m) => m.name).filter((n): n is string => Boolean(n)),
+    [careTeam],
   );
 
   const counts = useMemo(() => countByStatus(medications), [medications]);
@@ -134,9 +144,11 @@ export default function MedicationsClient({
 
           <MedicationsList
             medications={filtered}
+            dosageChangesByMed={dosageChangesByMed}
             onEdit={(m) => setEditing(m)}
             onStop={(m) => setEditing({ ...m, status: "stopped" })}
             onDelete={handleDelete}
+            onChangeDosage={(m) => setDosageChanging(m)}
           />
         </>
       )}
@@ -152,6 +164,14 @@ export default function MedicationsClient({
             setCreating(null);
           }}
           onSaved={handleSaved}
+        />
+      )}
+
+      {dosageChanging && (
+        <DosageChangeModal
+          medication={dosageChanging}
+          careTeamNames={careTeamNames}
+          onClose={() => setDosageChanging(null)}
         />
       )}
     </div>

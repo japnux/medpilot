@@ -583,6 +583,45 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["medications"]["Insert"]>;
         Relationships: [];
       };
+      medication_dosage_changes: {
+        Row: {
+          id: string;
+          medication_id: string;
+          family_id: string;
+          changed_at: string;
+          previous_dosage: string | null;
+          previous_posology: string | null;
+          new_dosage: string;
+          new_posology: string | null;
+          reason: string | null;
+          prescriber: string | null;
+          source_consultation_id: string | null;
+          source_document_id: string | null;
+          notes: string | null;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          medication_id: string;
+          family_id: string;
+          changed_at?: string;
+          previous_dosage?: string | null;
+          previous_posology?: string | null;
+          new_dosage: string;
+          new_posology?: string | null;
+          reason?: string | null;
+          prescriber?: string | null;
+          source_consultation_id?: string | null;
+          source_document_id?: string | null;
+          notes?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["medication_dosage_changes"]["Insert"]
+        >;
+        Relationships: [];
+      };
       medication_references: {
         Row: {
           id: string;

@@ -2,19 +2,24 @@
 
 import MedicationCard from "./MedicationCard";
 import type { Medication } from "@/lib/medications-helpers";
+import type { DosageChangeRow } from "@/lib/medication-dosage-helpers";
 
 interface Props {
   medications: Medication[];
+  dosageChangesByMed: Record<string, DosageChangeRow[]>;
   onEdit: (m: Medication) => void;
   onStop: (m: Medication) => void;
   onDelete: (m: Medication) => void;
+  onChangeDosage: (m: Medication) => void;
 }
 
 export default function MedicationsList({
   medications,
+  dosageChangesByMed,
   onEdit,
   onStop,
   onDelete,
+  onChangeDosage,
 }: Props) {
   if (medications.length === 0) {
     return (
@@ -29,9 +34,11 @@ export default function MedicationsList({
         <MedicationCard
           key={m.id}
           medication={m}
+          dosageChanges={dosageChangesByMed[m.id] ?? []}
           onEdit={onEdit}
           onStop={onStop}
           onDelete={onDelete}
+          onChangeDosage={onChangeDosage}
         />
       ))}
     </div>
