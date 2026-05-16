@@ -17,6 +17,7 @@ import {
   GitBranch,
   Phone,
   Plus,
+  Trash2,
 } from "lucide-react";
 
 interface Props {
@@ -101,6 +102,17 @@ export default function SymptomsTrackingClient({ familyId, symptoms }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_resolved: true }),
     });
+    router.refresh();
+  }
+
+  async function deleteSymptom(id: string, label: string | null) {
+    if (
+      !confirm(
+        `Supprimer définitivement « ${label ?? "ce symptôme"} » ?\nL'action est irréversible.`,
+      )
+    )
+      return;
+    await fetch(`/api/symptoms/${id}`, { method: "DELETE" });
     router.refresh();
   }
 
@@ -261,7 +273,11 @@ export default function SymptomsTrackingClient({ familyId, symptoms }: Props) {
         ) : (
           <ul className="space-y-2">
             {historyFiltered.map((s) => (
-              <SymptomItem key={s.id} symptom={s} />
+              <SymptomItem
+                key={s.id}
+                symptom={s}
+                onDelete={() => deleteSymptom(s.id, s.symptom_label)}
+              />
             ))}
           </ul>
         )}
@@ -270,7 +286,13 @@ export default function SymptomsTrackingClient({ familyId, symptoms }: Props) {
   );
 }
 
-function SymptomItem({ symptom: s }: { symptom: SymptomLog }) {
+function SymptomItem({
+  symptom: s,
+  onDelete,
+}: {
+  symptom: SymptomLog;
+  onDelete: () => void;
+}) {
   const isWellbeing = s.category === "wellbeing";
   const isVital = s.category === "vital_sign";
   const wbMeta = getWellbeingMeta(s.wellbeing_score);
@@ -362,6 +384,15 @@ function SymptomItem({ symptom: s }: { symptom: SymptomLog }) {
             </p>
           )}
         </div>
+        <button
+          type="button"
+          onClick={onDelete}
+          title="Supprimer ce symptôme"
+          aria-label="Supprimer ce symptôme"
+          className="shrink-0 w-7 h-7 rounded-md text-muted hover:text-error hover:bg-error/5 flex items-center justify-center"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </li>
   );
