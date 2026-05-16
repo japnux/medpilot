@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { detectRedFlagMatches, type RedFlag } from "@/lib/symptom-criticality";
+import {
+  detectRedFlagForNewSymptom,
+  type RedFlag,
+} from "@/lib/symptom-criticality";
 
 export const runtime = "nodejs";
 
@@ -34,11 +37,6 @@ const Schema = z.object({
   notes: z.string().nullable().optional(),
 });
 
-/**
- * POST /api/symptoms — crée un symptôme + détecte les red flags via la KB
- * cancer. Si match, marque le symptôme comme critical (is_critical=true,
- * red_flag_matched=titre).
- */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const {
@@ -56,7 +54,6 @@ export async function POST(request: NextRequest) {
   }
   const data = parsed.data;
 
-  // RLS gère l'autorisation famille, mais on vérifie quand même côté serveur
   const { data: membership } = await supabase
     .from("family_members")
     .select("family_id")
@@ -66,7 +63,6 @@ export async function POST(request: NextRequest) {
   if (!membership)
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-  // Insert d'abord, puis on fait la détection sur les 48h récentes
   const { data: created, error: insErr } = await supabase
     .from("symptom_logs")
     .insert({
@@ -91,14 +87,16 @@ export async function POST(request: NextRequest) {
   if (insErr)
     return NextResponse.json({ error: insErr.message }, { status: 500 });
 
-  // Détection red flags (48h)
+  // Détection red flags : on charge les 48h récentes EXCLUANT le nouveau
+  // symptôme, puis on regarde si le nouveau contribue lui-même à un match.
   const since = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
   const [{ data: recent }, { data: profile }] = await Promise.all([
     supabase
       .from("symptom_logs")
-      .select("symptom_type, symptom_label, notes, category")
+      .select("symptom_type, symptom_label, category")
       .eq("family_id", data.family_id)
       .gte("logged_at", since)
+      .neq("id", created.id)
       .limit(50),
     supabase
       .from("cancer_profiles")
@@ -107,8 +105,14 @@ export async function POST(request: NextRequest) {
       .maybeSingle(),
   ]);
 
-  let redFlagMatched: { match: ReturnType<typeof detectRedFlagMatches>; symptomId: string } | null =
-    null;
+  let returnedFlag: {
+    title?: string;
+    severity?: string;
+    rationale?: string;
+    action?: string;
+    matched_signs?: string[];
+  } | null = null;
+
   if (profile?.cancer_type) {
     const { data: kb } = await supabase
       .from("cancer_knowledge_base")
@@ -116,39 +120,46 @@ export async function POST(request: NextRequest) {
       .eq("cancer_type", profile.cancer_type)
       .maybeSingle();
     const flags = (kb?.red_flags as unknown as RedFlag[]) ?? [];
-    const match = detectRedFlagMatches(
+    const match = detectRedFlagForNewSymptom(
+      {
+        symptom_type: created.symptom_type,
+        symptom_label: created.symptom_label,
+        category: created.category as SymptomCategoryLike,
+      },
       (recent ?? []).map((r) => ({
         symptom_type: r.symptom_type,
         symptom_label: r.symptom_label,
-        notes: r.notes,
-        category: null,
+        category: r.category as SymptomCategoryLike,
       })),
       flags,
     );
     if (match) {
-      redFlagMatched = { match, symptomId: created.id };
       await supabase
         .from("symptom_logs")
         .update({
           is_critical: true,
           red_flag_matched: match.redFlag.symptom_or_sign ?? "Red flag",
-          matched_keywords: match.matchedKeywords,
+          matched_keywords: match.matchedSigns,
         })
         .eq("id", created.id);
+      returnedFlag = {
+        title: match.redFlag.symptom_or_sign,
+        severity: match.redFlag.severity,
+        rationale: match.redFlag.rationale,
+        action: match.redFlag.action,
+        matched_signs: match.matchedSigns,
+      };
     }
   }
 
   return NextResponse.json({
     ok: true,
     symptom: created,
-    red_flag: redFlagMatched
-      ? {
-          title: redFlagMatched.match?.redFlag.symptom_or_sign,
-          severity: redFlagMatched.match?.redFlag.severity,
-          rationale: redFlagMatched.match?.redFlag.rationale,
-          action: redFlagMatched.match?.redFlag.action,
-          matched_keywords: redFlagMatched.match?.matchedKeywords,
-        }
-      : null,
+    red_flag: returnedFlag,
   });
 }
+
+// Aide pour caster le category de la DB (string | null) vers le type strict
+type SymptomCategoryLike = Parameters<
+  typeof detectRedFlagForNewSymptom
+>[0]["category"];

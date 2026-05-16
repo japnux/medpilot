@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { detectRedFlagMatches, type RedFlag } from "@/lib/symptom-criticality";
+import {
+  detectRedFlagForNewSymptom,
+  type RedFlag,
+} from "@/lib/symptom-criticality";
 import type { Database } from "@/types/database";
 
 type SymptomInsert = Database["public"]["Tables"]["symptom_logs"]["Insert"];
@@ -40,11 +43,14 @@ const Schema = z.object({
 });
 
 /**
- * POST /api/symptoms/quick-checkin — insère un check-in quotidien complet :
- *  - une row "wellbeing" si wellbeing_score fourni
- *  - une row par item (symptôme ou signe vital)
- * Puis lance la détection de red flags sur les 48h récentes et marque
- * éventuellement les rows critiques.
+ * POST /api/symptoms/quick-checkin — batch insert :
+ *  - 1 row "wellbeing" si wellbeing_score ou notes
+ *  - N rows par item (symptôme ou signe vital)
+ *
+ * Détection red flag : appliquée individuellement à chaque row insérée
+ * (sauf wellbeing). Seules les rows qui contribuent réellement à un red
+ * flag sont marquées critiques, en utilisant les autres rows + les 48h
+ * récentes comme contexte.
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -72,21 +78,13 @@ export async function POST(request: NextRequest) {
   if (!membership)
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-  if (
-    !data.wellbeing_score &&
-    data.items.length === 0 &&
-    !data.notes
-  ) {
-    return NextResponse.json(
-      { error: "Check-in vide" },
-      { status: 400 },
-    );
+  if (!data.wellbeing_score && data.items.length === 0 && !data.notes) {
+    return NextResponse.json({ error: "Check-in vide" }, { status: 400 });
   }
 
   const loggedAt = data.logged_at ?? new Date().toISOString();
   const rows: SymptomInsert[] = [];
 
-  // Row "wellbeing" en premier (porte la note + le score global)
   if (data.wellbeing_score || data.notes) {
     rows.push({
       family_id: data.family_id,
@@ -123,15 +121,17 @@ export async function POST(request: NextRequest) {
   if (insErr)
     return NextResponse.json({ error: insErr.message }, { status: 500 });
 
-  // Détection red flags
+  // Détection red flags : 48h récentes EXCLUANT les rows fraîchement insérées
+  const insertedIds = (inserted ?? []).map((r) => r.id);
   const since = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
-  const [{ data: recent }, { data: profile }] = await Promise.all([
+
+  const [{ data: recentRaw }, { data: profile }] = await Promise.all([
     supabase
       .from("symptom_logs")
-      .select("symptom_type, symptom_label, notes, category")
+      .select("id, symptom_type, symptom_label, category")
       .eq("family_id", data.family_id)
       .gte("logged_at", since)
-      .limit(50),
+      .limit(80),
     supabase
       .from("cancer_profiles")
       .select("cancer_type")
@@ -139,47 +139,71 @@ export async function POST(request: NextRequest) {
       .maybeSingle(),
   ]);
 
-  let redFlag: ReturnType<typeof detectRedFlagMatches> = null;
-  if (profile?.cancer_type) {
+  const recent = (recentRaw ?? []).filter((r) => !insertedIds.includes(r.id));
+
+  let returnedFlag: {
+    title?: string;
+    severity?: string;
+    rationale?: string;
+    action?: string;
+    matched_signs?: string[];
+  } | null = null;
+
+  if (profile?.cancer_type && inserted) {
     const { data: kb } = await supabase
       .from("cancer_knowledge_base")
       .select("red_flags")
       .eq("cancer_type", profile.cancer_type)
       .maybeSingle();
     const flags = (kb?.red_flags as unknown as RedFlag[]) ?? [];
-    redFlag = detectRedFlagMatches(
-      (recent ?? []).map((r) => ({
-        symptom_type: r.symptom_type,
-        symptom_label: r.symptom_label,
-        notes: r.notes,
-        category: null,
-      })),
-      flags,
-    );
-    if (redFlag) {
-      const ids = (inserted ?? []).map((r) => r.id);
-      await supabase
-        .from("symptom_logs")
-        .update({
-          is_critical: true,
-          red_flag_matched: redFlag.redFlag.symptom_or_sign ?? "Red flag",
-          matched_keywords: redFlag.matchedKeywords,
-        })
-        .in("id", ids);
+
+    // Pour chaque row insérée (hors wellbeing), tente une détection en utilisant
+    // les autres rows insérées + les 48h récentes comme contexte.
+    const otherInserted = inserted.filter((r) => r.category !== "wellbeing");
+    for (const row of inserted) {
+      if (row.category === "wellbeing") continue;
+      const contextRows = [
+        ...otherInserted.filter((r) => r.id !== row.id),
+        ...recent,
+      ];
+      const match = detectRedFlagForNewSymptom(
+        {
+          symptom_type: row.symptom_type,
+          symptom_label: row.symptom_label,
+          category: row.category as Parameters<typeof detectRedFlagForNewSymptom>[0]["category"],
+        },
+        contextRows.map((r) => ({
+          symptom_type: r.symptom_type,
+          symptom_label: r.symptom_label,
+          category: r.category as Parameters<typeof detectRedFlagForNewSymptom>[0]["category"],
+        })),
+        flags,
+      );
+      if (match) {
+        await supabase
+          .from("symptom_logs")
+          .update({
+            is_critical: true,
+            red_flag_matched: match.redFlag.symptom_or_sign ?? "Red flag",
+            matched_keywords: match.matchedSigns,
+          })
+          .eq("id", row.id);
+        if (!returnedFlag) {
+          returnedFlag = {
+            title: match.redFlag.symptom_or_sign,
+            severity: match.redFlag.severity,
+            rationale: match.redFlag.rationale,
+            action: match.redFlag.action,
+            matched_signs: match.matchedSigns,
+          };
+        }
+      }
     }
   }
 
   return NextResponse.json({
     ok: true,
     inserted_count: inserted?.length ?? 0,
-    red_flag: redFlag
-      ? {
-          title: redFlag.redFlag.symptom_or_sign,
-          severity: redFlag.redFlag.severity,
-          rationale: redFlag.redFlag.rationale,
-          action: redFlag.redFlag.action,
-          matched_keywords: redFlag.matchedKeywords,
-        }
-      : null,
+    red_flag: returnedFlag,
   });
 }

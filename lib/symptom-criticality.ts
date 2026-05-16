@@ -1,12 +1,13 @@
 /**
- * Détection de red flags : matching de mots-clés entre les symptômes
- * récents (24-48h) et la KB cancer (red_flags). Si suffisamment de
- * mots-clés matchent un red flag, on flagge le symptôme courant comme
- * critique.
+ * Détection de red flags : un symptôme nouvellement inséré est flaggé
+ * critique SI ET SEULEMENT SI :
+ *   - Il contribue lui-même à un red flag (au moins 1 token clinique matché)
+ *   - Combiné aux autres symptômes des 48h récentes, le red flag atteint
+ *     son seuil de signes distincts (2 pour vital, 3 sinon).
  *
- * Seuils : 2 keywords pour la plupart, 1 pour severity='vital'.
- * Pas d'archivage auto : on remonte le match à l'UI qui affiche un
- * encart bloquant avec la conduite à tenir.
+ * Approche : on tokenize uniquement symptom_type + symptom_label (PAS les
+ * notes, trop bruitées). On exclut les tokens trop génériques. On split le
+ * red flag par virgules pour en faire des signes cliniques distincts.
  */
 
 import type { SymptomLog } from "./symptoms";
@@ -21,15 +22,19 @@ export interface RedFlag {
 
 export interface RedFlagMatch {
   redFlag: RedFlag;
-  matchedKeywords: string[];
-  score: number;
+  matchedSigns: string[]; // signes distincts du red flag couverts
+  newSymptomContributes: boolean;
 }
 
-/** Mots vides à exclure du matching (trop génériques). */
-const STOPWORDS = new Set([
-  "patient", "sous", "apres", "avant", "pour", "dans", "avec", "sans",
-  "dune", "duke", "etre", "tout", "tres", "plus", "cette", "celle", "moins",
-  "vers", "chez", "leur", "leurs", "mais", "donc", "dont", "comme", "entre",
+/** Tokens trop génériques pour porter une signification clinique. */
+const GENERIC_TOKENS = new Set([
+  "douleur", "douleurs", "severe", "severes", "rapide", "rapides",
+  "majeure", "majeur", "leger", "legere", "intense", "modere", "moderee",
+  "perte", "gain", "augmentation", "diminution", "presence", "absence",
+  "matin", "soir", "nuit", "jour", "semaine", "patient", "patiente",
+  "sous", "apres", "avant", "pour", "dans", "avec", "sans", "chez",
+  "etre", "tout", "tres", "plus", "moins", "cette", "celle", "leur",
+  "leurs", "mais", "donc", "dont", "comme", "entre", "depuis", "vers",
 ]);
 
 function normalize(s: string): string {
@@ -41,53 +46,79 @@ function normalize(s: string): string {
 
 function tokenize(s: string): string[] {
   return normalize(s)
-    .split(/[\s,;.·\/\\()]+/)
-    .filter((w) => w.length > 3 && !STOPWORDS.has(w));
+    .split(/[\s,;.·/\\()]+/)
+    .filter((w) => w.length >= 4 && !GENERIC_TOKENS.has(w));
+}
+
+/** Split un red flag en signes cliniques distincts. */
+function extractSigns(redFlagText: string): string[] {
+  return redFlagText
+    .split(/[,;]/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+function signMatches(sign: string, userTokens: Set<string>): boolean {
+  const signTokens = tokenize(sign);
+  if (signTokens.length === 0) return false;
+  // Au moins un token significatif du signe doit apparaître chez l'utilisateur
+  return signTokens.some((t) =>
+    Array.from(userTokens).some((ut) => ut === t || ut.includes(t) || t.includes(ut)),
+  );
 }
 
 /**
- * Cherche le meilleur red flag matché par les symptômes récents.
- * Retourne null si aucun red flag n'atteint le seuil.
+ * Détection ciblée : retourne un match SI le nouveau symptôme contribue
+ * lui-même à un red flag et que le seuil global est atteint.
+ *
+ * @param newSymptom Le symptôme qu'on vient d'insérer
+ * @param recentSymptoms Les symptômes des 48h récentes EXCLUANT le nouveau
+ * @param redFlags Liste des red flags de la KB cancer
  */
-export function detectRedFlagMatches(
-  recentSymptoms: Pick<
-    SymptomLog,
-    "symptom_type" | "symptom_label" | "notes" | "category"
-  >[],
+export function detectRedFlagForNewSymptom(
+  newSymptom: Pick<SymptomLog, "symptom_type" | "symptom_label" | "category">,
+  recentSymptoms: Pick<SymptomLog, "symptom_type" | "symptom_label" | "category">[],
   redFlags: RedFlag[],
 ): RedFlagMatch | null {
+  // Wellbeing seul ne peut JAMAIS déclencher un red flag (c'est un score, pas un symptôme)
+  if (newSymptom.category === "wellbeing") return null;
   if (redFlags.length === 0) return null;
 
-  // Tokens issus des symptômes récents
-  const symptomTokens = new Set<string>();
+  const newTokens = new Set([
+    ...tokenize(newSymptom.symptom_type ?? ""),
+    ...tokenize(newSymptom.symptom_label ?? ""),
+  ]);
+  if (newTokens.size === 0) return null;
+
+  // Tokens des 48h récentes (hors wellbeing)
+  const recentTokens = new Set<string>();
   for (const s of recentSymptoms) {
-    if (s.symptom_type) tokenize(s.symptom_type).forEach((t) => symptomTokens.add(t));
-    if (s.symptom_label) tokenize(s.symptom_label).forEach((t) => symptomTokens.add(t));
-    if (s.notes) tokenize(s.notes).forEach((t) => symptomTokens.add(t));
+    if (s.category === "wellbeing") continue;
+    tokenize(s.symptom_type ?? "").forEach((t) => recentTokens.add(t));
+    tokenize(s.symptom_label ?? "").forEach((t) => recentTokens.add(t));
   }
-  if (symptomTokens.size === 0) return null;
+
+  const combinedTokens = new Set([...newTokens, ...recentTokens]);
 
   let best: RedFlagMatch | null = null;
   for (const rf of redFlags) {
-    const flagText = `${rf.symptom_or_sign ?? ""} ${rf.context ?? ""}`;
-    const flagTokens = tokenize(flagText);
-    if (flagTokens.length === 0) continue;
+    const signs = extractSigns(rf.symptom_or_sign);
+    if (signs.length === 0) continue;
 
-    const matched = flagTokens.filter((kw) => {
-      for (const st of symptomTokens) {
-        if (st.includes(kw) || kw.includes(st)) return true;
-      }
-      return false;
-    });
-    if (matched.length === 0) continue;
+    // Le nouveau symptôme contribue-t-il à au moins un signe ?
+    const newContributesSigns = signs.filter((sign) => signMatches(sign, newTokens));
+    if (newContributesSigns.length === 0) continue;
 
-    const threshold = rf.severity === "vital" ? 1 : 2;
-    if (matched.length >= threshold) {
-      if (!best || matched.length > best.score) {
+    // Compte total de signes distincts couverts (nouveau + récents)
+    const coveredSigns = signs.filter((sign) => signMatches(sign, combinedTokens));
+
+    const threshold = rf.severity === "vital" ? 2 : 3;
+    if (coveredSigns.length >= threshold) {
+      if (!best || coveredSigns.length > best.matchedSigns.length) {
         best = {
           redFlag: rf,
-          matchedKeywords: Array.from(new Set(matched)),
-          score: matched.length,
+          matchedSigns: coveredSigns,
+          newSymptomContributes: true,
         };
       }
     }
