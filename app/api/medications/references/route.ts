@@ -23,22 +23,23 @@ export async function GET(request: NextRequest) {
   }
 
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
-  if (q.length < 1) {
-    return NextResponse.json({ ok: true, references: [] });
-  }
 
-  // Échappe le `%` du LIKE pour éviter qu'un user influe sur le pattern
-  const safe = q.replace(/[%_]/g, "\\$&");
-  const pattern = `%${safe}%`;
-
-  const { data, error } = await supabase
+  let query = supabase
     .from("medication_references")
     .select(
       "id, name, brand_name, active_ingredient, category, default_indication, wikipedia_url, vidal_url, ansm_url, common_side_effects",
     )
-    .or(`name.ilike.${pattern},brand_name.ilike.${pattern}`)
     .order("name", { ascending: true })
-    .limit(10);
+    .limit(q.length === 0 ? 50 : 10);
+
+  if (q.length > 0) {
+    // Échappe les wildcards du LIKE pour éviter qu'un user influe sur le pattern
+    const safe = q.replace(/[%_]/g, "\\$&");
+    const pattern = `%${safe}%`;
+    query = query.or(`name.ilike.${pattern},brand_name.ilike.${pattern}`);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

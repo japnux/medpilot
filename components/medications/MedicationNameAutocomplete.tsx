@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 export interface MedicationReference {
   id: string;
@@ -18,20 +19,27 @@ export interface MedicationReference {
 interface Props {
   value: string;
   onChange: (next: string) => void;
+  /** Sélection explicite depuis le dropdown : prefill complet (nom, marque, …). */
   onPick: (ref: MedicationReference) => void;
+  /** Match exact détecté pendant la frappe : prefill conservateur (URLs, side effects). */
+  onMatchByName?: (ref: MedicationReference) => void;
   placeholder?: string;
   required?: boolean;
 }
 
 /**
- * Input texte avec dropdown d'autocomplete depuis /api/medications/references.
- * Debounced (200ms). Affiche les 10 premiers matchs (par name ou brand_name).
- * Le pick prefill les autres champs du form via le callback `onPick`.
+ * Input texte + dropdown depuis /api/medications/references.
+ * - Clic / focus : ouvre la liste (top 50 si vide, 10 filtrés sinon).
+ * - Frappe : filtre debouncé 200ms. Si un match est exact (name ou brand_name),
+ *   `onMatchByName` est déclenché pour pré-remplir les URLs/effets indésirables
+ *   sans cliquer.
+ * - Le user peut toujours valider un nom libre qui n'est pas dans la table.
  */
 export default function MedicationNameAutocomplete({
   value,
   onChange,
   onPick,
+  onMatchByName,
   placeholder,
   required,
 }: Props) {
@@ -39,17 +47,15 @@ export default function MedicationNameAutocomplete({
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
-  // Anti-flicker : on n'écrase pas les suggestions tant qu'on ne ré-ouvre pas.
+  const inputRef = useRef<HTMLInputElement>(null);
   const queryRef = useRef(value);
+  // Évite de re-déclencher onMatchByName en boucle pour le même match
+  const lastMatchedIdRef = useRef<string | null>(null);
 
-  // Fetch debouncé
+  // Fetch debouncé (déclenché aussi pour query vide, à l'ouverture)
   useEffect(() => {
     queryRef.current = value;
     const q = value.trim();
-    if (q.length < 2) {
-      setSuggestions([]);
-      return;
-    }
     const handle = setTimeout(async () => {
       try {
         const res = await fetch(
@@ -59,17 +65,40 @@ export default function MedicationNameAutocomplete({
         const json = (await res.json()) as {
           references?: MedicationReference[];
         };
-        // Ignore si la query a changé entre temps
-        if (queryRef.current === value) {
-          setSuggestions(json.references ?? []);
-          setActiveIdx(-1);
+        if (queryRef.current !== value) return;
+        const list = json.references ?? [];
+        setSuggestions(list);
+        setActiveIdx(-1);
+
+        // Match exact (case + accent-insensitive minimal via normalize)
+        if (q.length >= 2 && onMatchByName) {
+          const norm = (s: string) =>
+            s
+              .normalize("NFD")
+              .replace(/[̀-ͯ]/g, "")
+              .toLowerCase()
+              .trim();
+          const target = norm(q);
+          const exact = list.find(
+            (r) =>
+              norm(r.name) === target ||
+              (r.brand_name && norm(r.brand_name) === target),
+          );
+          if (exact && lastMatchedIdRef.current !== exact.id) {
+            lastMatchedIdRef.current = exact.id;
+            onMatchByName(exact);
+          } else if (!exact) {
+            lastMatchedIdRef.current = null;
+          }
+        } else {
+          lastMatchedIdRef.current = null;
         }
       } catch {
         /* silencieux */
       }
     }, 200);
     return () => clearTimeout(handle);
-  }, [value]);
+  }, [value, onMatchByName]);
 
   // Clic à l'extérieur → fermer
   useEffect(() => {
@@ -83,19 +112,26 @@ export default function MedicationNameAutocomplete({
   function handlePick(ref: MedicationReference) {
     onPick(ref);
     setOpen(false);
-    setSuggestions([]);
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open || suggestions.length === 0) return;
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+    if (suggestions.length === 0) {
+      if (e.key === "Escape") setOpen(false);
+      return;
+    }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIdx((i) => (i + 1) % suggestions.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIdx((i) =>
-        i <= 0 ? suggestions.length - 1 : i - 1,
-      );
+      setActiveIdx((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
     } else if (e.key === "Enter" && activeIdx >= 0) {
       e.preventDefault();
       handlePick(suggestions[activeIdx]);
@@ -108,20 +144,37 @@ export default function MedicationNameAutocomplete({
 
   return (
     <div ref={containerRef} className="relative">
-      <input
-        type="text"
-        required={required}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => {
-          onChange(e.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={handleKey}
-        autoComplete="off"
-        className="w-full px-3 py-2 rounded-md border border-hairline bg-canvas text-sm focus:outline-none focus:ring-2 focus:ring-ink/10"
-      />
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          required={required}
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={handleKey}
+          autoComplete="off"
+          className="w-full pl-3 pr-9 py-2 rounded-md border border-hairline bg-canvas text-sm focus:outline-none focus:ring-2 focus:ring-ink/10"
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => {
+            setOpen((o) => !o);
+            inputRef.current?.focus();
+          }}
+          className="absolute inset-y-0 right-0 px-2 flex items-center text-muted hover:text-ink"
+          aria-label={open ? "Fermer la liste" : "Ouvrir la liste"}
+        >
+          <ChevronDown
+            className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      </div>
       {showDropdown && (
         <ul
           role="listbox"

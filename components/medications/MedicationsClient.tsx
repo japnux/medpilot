@@ -9,7 +9,7 @@ import {
 } from "@/lib/medications-helpers";
 import type { MedicationStatus } from "@/types/database";
 import MedicationsList from "./MedicationsList";
-import MedicationForm from "./MedicationForm";
+import MedicationForm, { type CareTeamMember } from "./MedicationForm";
 import EmptyMedicationsState from "./EmptyMedicationsState";
 
 type Filter = "active" | "all" | "stopped" | "planned" | "paused";
@@ -26,12 +26,14 @@ interface Props {
   familyId: string;
   initialMedications: Medication[];
   patientFirstName: string | null;
+  careTeam: CareTeamMember[];
 }
 
 export default function MedicationsClient({
   familyId,
   initialMedications,
   patientFirstName,
+  careTeam,
 }: Props) {
   const { medications, setMedications } = useMedications(
     familyId,
@@ -144,6 +146,7 @@ export default function MedicationsClient({
           initial={editing}
           existing={medications}
           defaultStatus={creating?.defaultStatus ?? "active"}
+          careTeam={careTeam}
           onClose={() => {
             setEditing(null);
             setCreating(null);

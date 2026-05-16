@@ -29,7 +29,7 @@ export default async function MedicationsPage() {
   const [{ data: profile }, { data: medications }] = await Promise.all([
     supabase
       .from("cancer_profiles")
-      .select("patient_first_name")
+      .select("patient_first_name, care_team")
       .eq("family_id", familyId)
       .maybeSingle(),
     supabase
@@ -40,11 +40,21 @@ export default async function MedicationsPage() {
       .order("started_at", { ascending: false, nullsFirst: false }),
   ]);
 
+  // care_team est en JSONB libre : on garde uniquement les entrées avec un nom.
+  const careTeam = Array.isArray(profile?.care_team)
+    ? (profile.care_team as Array<{
+        name?: string;
+        specialty?: string;
+        hospital?: string;
+      }>).filter((m) => typeof m?.name === "string" && m.name.trim().length > 0)
+    : [];
+
   return (
     <MedicationsClient
       familyId={familyId}
       initialMedications={medications ?? []}
       patientFirstName={profile?.patient_first_name ?? null}
+      careTeam={careTeam}
     />
   );
 }

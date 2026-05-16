@@ -13,6 +13,13 @@ import MedicationNameAutocomplete, {
   type MedicationReference,
 } from "./MedicationNameAutocomplete";
 
+/** Forme attendue d'une entrée care_team du profil cancer. */
+export interface CareTeamMember {
+  name?: string;
+  specialty?: string;
+  hospital?: string;
+}
+
 interface Props {
   /** Si fourni, mode édition. Sinon, mode création. */
   initial?: Medication | null;
@@ -20,6 +27,8 @@ interface Props {
   existing: Medication[];
   /** Statut pré-sélectionné si création (ex: "Arrêter" → "stopped"). */
   defaultStatus?: MedicationStatus;
+  /** Équipe médicale du patient (pour suggérer le prescripteur). */
+  careTeam?: CareTeamMember[];
   onClose: () => void;
   onSaved: (m: Medication) => void;
 }
@@ -85,6 +94,7 @@ export default function MedicationForm({
   initial,
   existing,
   defaultStatus = "active",
+  careTeam = [],
   onClose,
   onSaved,
 }: Props) {
@@ -120,9 +130,8 @@ export default function MedicationForm({
   }
 
   /**
-   * Prefill depuis une référence : remplit les champs vides uniquement
-   * (ne pas écraser ce que l'utilisateur a déjà saisi). Ouvre les sections
-   * URLs/effets si la référence en apporte.
+   * Sélection explicite depuis le dropdown : prefill complet (nom inclus),
+   * non-destructif sur les champs déjà remplis par l'utilisateur.
    */
   function handlePickReference(ref: MedicationReference) {
     setState((s) => ({
@@ -137,6 +146,29 @@ export default function MedicationForm({
       ansm_url: s.ansm_url || ref.ansm_url || "",
       known_side_effects:
         s.known_side_effects || formatSideEffectsFromRef(ref.common_side_effects),
+    }));
+    if (ref.wikipedia_url || ref.vidal_url || ref.ansm_url) setLinksOpen(true);
+    if (Array.isArray(ref.common_side_effects) && ref.common_side_effects.length > 0) {
+      setSideOpen(true);
+    }
+  }
+
+  /**
+   * Match exact détecté pendant la frappe : remplace les URLs et effets indésirables
+   * par ceux de la référence trouvée (même si l'utilisateur en avait déjà). C'est
+   * voulu : quand le nom change vers un autre médicament, les liens doivent suivre.
+   * Brand_name et indication restent non-destructifs.
+   */
+  function handleMatchByName(ref: MedicationReference) {
+    setState((s) => ({
+      ...s,
+      brand_name: s.brand_name || ref.brand_name || "",
+      active_ingredient: s.active_ingredient || ref.active_ingredient || "",
+      indication: s.indication || ref.default_indication || "",
+      wikipedia_url: ref.wikipedia_url || "",
+      vidal_url: ref.vidal_url || "",
+      ansm_url: ref.ansm_url || "",
+      known_side_effects: formatSideEffectsFromRef(ref.common_side_effects),
     }));
     if (ref.wikipedia_url || ref.vidal_url || ref.ansm_url) setLinksOpen(true);
     if (Array.isArray(ref.common_side_effects) && ref.common_side_effects.length > 0) {
@@ -253,11 +285,12 @@ export default function MedicationForm({
               value={state.name}
               onChange={(v) => update("name", v)}
               onPick={handlePickReference}
+              onMatchByName={handleMatchByName}
               placeholder="Mitotane"
               required
             />
             <p className="mt-1 text-xs text-muted">
-              Tapez les premières lettres pour suggérer une référence et préremplir les autres champs.
+              Cliquez pour parcourir la liste, ou tapez librement. Liens officiels et effets indésirables se chargent automatiquement quand le nom correspond à une référence.
             </p>
             {duplicate && (
               <p className="mt-1 text-xs text-amber-700 inline-flex items-center gap-1">
@@ -368,11 +401,34 @@ export default function MedicationForm({
               </label>
               <input
                 type="text"
+                list="medication-prescriber-options"
                 value={state.prescriber}
                 onChange={(e) => update("prescriber", e.target.value)}
-                placeholder="Dr Thoulouzan"
+                placeholder={
+                  careTeam.length > 0
+                    ? "Choisir un médecin de l'équipe ou saisir librement"
+                    : "Dr Thoulouzan"
+                }
                 className="w-full px-3 py-2 rounded-md border border-hairline bg-canvas text-sm focus:outline-none focus:ring-2 focus:ring-ink/10"
               />
+              {careTeam.length > 0 && (
+                <datalist id="medication-prescriber-options">
+                  {careTeam
+                    .filter((m) => m.name && m.name.trim().length > 0)
+                    .map((m, idx) => {
+                      const detail = [m.specialty, m.hospital]
+                        .filter(Boolean)
+                        .join(" — ");
+                      return (
+                        <option
+                          key={`${m.name}-${idx}`}
+                          value={m.name!}
+                          label={detail || undefined}
+                        />
+                      );
+                    })}
+                </datalist>
+              )}
             </div>
           </div>
 
@@ -396,10 +452,10 @@ export default function MedicationForm({
               {STATUS_OPTIONS.map((o) => (
                 <label
                   key={o.value}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md border text-sm cursor-pointer ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${
                     state.status === o.value
-                      ? "border-ink bg-surface-card"
-                      : "border-hairline hover:bg-surface-card"
+                      ? "bg-surface-card text-ink"
+                      : "text-body hover:bg-surface-card"
                   }`}
                 >
                   <input
