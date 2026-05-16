@@ -85,7 +85,14 @@ export default async function DocumentDetailPage({ params }: PageProps) {
               <FileText className="w-4 h-4 text-orange-700 shrink-0" />
               <span className="badge-pill">{doc.document_type}</span>
             </div>
-            <h1 className="text-lg md:text-xl font-semibold text-ink break-words">
+            {/* Suffix `!` : la règle globale `h1 { font-size: 48px }` dans
+                globals.css est hors @layer et bat les utilitaires Tailwind sans
+                ça. line-clamp-2 cape les titres très longs (ellipsis), title
+                attribut pour l'accessibilité. */}
+            <h1
+              className="text-lg! md:text-xl! leading-snug! font-semibold text-ink line-clamp-2"
+              title={doc.title}
+            >
               {doc.title}
             </h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">

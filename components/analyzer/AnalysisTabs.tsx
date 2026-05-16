@@ -17,7 +17,7 @@ export default function AnalysisTabs({ result, hideTitle }: Props) {
   const [copied, setCopied] = useState(false);
 
   const tabs: Array<{ key: Tab; label: string }> = [
-    { key: "family", label: "Famille" },
+    { key: "family", label: "Résumé" },
     { key: "clinical", label: "Clinique" },
     { key: "points", label: "Points clés" },
     { key: "questions", label: "Questions" },
