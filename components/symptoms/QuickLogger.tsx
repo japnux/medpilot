@@ -125,7 +125,7 @@ export default function QuickLogger({ familyId, catalog }: Props) {
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
-      <header>
+      <header className="pr-12 md:pr-0">
         <h1 className="text-2xl font-semibold text-ink">Check-in</h1>
         <p className="text-sm text-muted mt-1">
           {new Date().toLocaleDateString("fr-FR", {
