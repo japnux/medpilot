@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { CANCER_PROFILES } from "@/lib/cancer-profiles";
+import { dedupeCareTeam } from "@/lib/care-team";
 import Step1Family from "@/components/onboarding/Step1Family";
 import Step2Patient from "@/components/onboarding/Step2Patient";
 import Step3Situation from "@/components/onboarding/Step3Situation";
@@ -114,7 +115,11 @@ export default function OnboardingPage() {
         surgery_date: state.hadSurgery ? state.surgeryDate || null : null,
         surgery_result: state.hadSurgery ? state.surgeryResult || null : null,
         active_treatments: state.treatments.map((name) => ({ name })),
-        care_team: state.careTeam,
+        care_team: JSON.parse(
+          JSON.stringify(
+            dedupeCareTeam(state.careTeam.filter((m) => m.name?.trim())),
+          ),
+        ),
         custom_markers: customMarkersObj,
         reference_network: profile?.reference_network ?? null,
       });

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/browser";
 import { CANCER_PROFILE_OPTIONS } from "@/lib/cancer-profiles";
 import type { Database } from "@/types/database";
 import { UserPlus, Trash2 } from "lucide-react";
+import { dedupeCareTeam, type CareTeamMember as CareTeamMemberShared } from "@/lib/care-team";
 
 type CancerProfile = Database["public"]["Tables"]["cancer_profiles"]["Row"];
 
@@ -93,13 +94,29 @@ export default function SettingsClient({
     setError(null);
     try {
       const supabase = createClient();
-      const cleaned = team.filter((t) => t.name?.trim());
+      // Dédoublonnage : fusionne automatiquement les variantes du même médecin
+      // (ex: "Dr Grunenwald" et "Dr Solange Grunenwald")
+      const cleaned = dedupeCareTeam(
+        team
+          .filter((t) => t.name?.trim())
+          .map((t) => ({
+            name: t.name!,
+            specialty: t.specialty,
+            hospital: t.hospital,
+          })) as CareTeamMemberShared[],
+      );
       const { error: e } = await supabase
         .from("cancer_profiles")
         .update({ care_team: JSON.parse(JSON.stringify(cleaned)) })
         .eq("family_id", familyId);
       if (e) throw e;
-      setStatus("Équipe mise à jour");
+      // Reflète localement (au cas où des doublons ont été fusionnés à l'écriture)
+      setTeam(cleaned);
+      setStatus(
+        cleaned.length < team.filter((t) => t.name?.trim()).length
+          ? `Équipe mise à jour (${team.filter((t) => t.name?.trim()).length - cleaned.length} doublon(s) fusionné(s))`
+          : "Équipe mise à jour",
+      );
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
