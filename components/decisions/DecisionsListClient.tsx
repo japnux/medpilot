@@ -225,16 +225,16 @@ export default function DecisionsListClient({
         />
       </div>
 
-      {/* Tabs (pills) */}
-      <nav className="flex flex-wrap gap-2">
+      {/* Tabs (segmented control) */}
+      <nav className="inline-flex flex-wrap bg-canvas-soft border border-hairline rounded-lg p-1 gap-1">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setFilter(t.id)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
               filter === t.id
-                ? "bg-ink text-canvas border-ink"
-                : "bg-canvas-soft text-body border-hairline hover:bg-surface-card hover:text-ink"
+                ? "bg-canvas text-ink shadow-sm"
+                : "text-muted hover:text-ink"
             }`}
           >
             {t.label}
@@ -242,7 +242,7 @@ export default function DecisionsListClient({
               <span
                 className={`text-[10px] tabular px-1.5 py-0.5 rounded-full ${
                   filter === t.id
-                    ? "bg-canvas/20 text-canvas"
+                    ? "bg-canvas-soft text-muted"
                     : "bg-canvas text-muted border border-hairline"
                 }`}
               >

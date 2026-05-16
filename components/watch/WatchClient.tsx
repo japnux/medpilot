@@ -238,8 +238,8 @@ export default function WatchClient({ familyId, finding }: Props) {
         </div>
       )}
 
-      {/* Tabs nav (pills, wrap, pas de scroll) */}
-      <nav className="flex flex-wrap gap-2">
+      {/* Tabs nav (segmented control) */}
+      <nav className="inline-flex flex-wrap bg-canvas-soft border border-hairline rounded-lg p-1 gap-1">
         {WATCH_TABS.map((t) => {
           const count = getTabItemCount(t.id, finding);
           const active = t.id === activeTab;
@@ -248,10 +248,10 @@ export default function WatchClient({ familyId, finding }: Props) {
               key={t.id}
               type="button"
               onClick={() => selectTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${
                 active
-                  ? "bg-ink text-canvas border-ink"
-                  : "bg-canvas-soft text-body border-hairline hover:bg-surface-card hover:text-ink"
+                  ? "bg-canvas text-ink shadow-sm"
+                  : "text-muted hover:text-ink"
               }`}
             >
               {t.label}
@@ -259,7 +259,7 @@ export default function WatchClient({ familyId, finding }: Props) {
                 <span
                   className={`text-[10px] tabular px-1.5 py-0.5 rounded-full ${
                     active
-                      ? "bg-canvas/20 text-canvas"
+                      ? "bg-canvas-soft text-muted"
                       : "bg-canvas text-muted border border-hairline"
                   }`}
                 >

@@ -42,19 +42,21 @@ export default async function AdminLayout({
             ← Retour à l&apos;app
           </Link>
         </div>
-        {/* Nav onglets (pills, wrap) */}
-        <nav className="max-w-7xl mx-auto px-6 pb-3 flex flex-wrap gap-2">
-          {TABS.map((t) => (
-            <Link
-              key={t.href}
-              href={t.href}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border bg-canvas-soft text-body border-hairline hover:bg-surface-card hover:text-ink transition-colors"
-            >
-              <span>{t.emoji}</span>
-              {t.label}
-            </Link>
-          ))}
-        </nav>
+        {/* Nav onglets (segmented control) */}
+        <div className="max-w-7xl mx-auto px-6 pb-3">
+          <nav className="inline-flex flex-wrap bg-canvas border border-hairline rounded-lg p-1 gap-1">
+            {TABS.map((t) => (
+              <Link
+                key={t.href}
+                href={t.href}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md text-muted hover:bg-canvas-soft hover:text-ink transition-colors"
+              >
+                <span>{t.emoji}</span>
+                {t.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </header>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-6">

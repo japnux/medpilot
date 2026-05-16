@@ -226,8 +226,8 @@ export default function KnowledgeBaseView({
 
       {error && <p className="text-sm text-error">{error}</p>}
 
-      {/* Tabs nav (pills) */}
-      <nav className="flex flex-wrap gap-2">
+      {/* Tabs nav (segmented control) */}
+      <nav className="inline-flex flex-wrap bg-canvas-soft border border-hairline rounded-lg p-1 gap-1">
         {KNOWLEDGE_TABS.map((t) => {
           const active = t.id === activeTab;
           return (
@@ -235,10 +235,10 @@ export default function KnowledgeBaseView({
               key={t.id}
               type="button"
               onClick={() => selectTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${
                 active
-                  ? "bg-ink text-canvas border-ink"
-                  : "bg-canvas-soft text-body border-hairline hover:bg-surface-card hover:text-ink"
+                  ? "bg-canvas text-ink shadow-sm"
+                  : "text-muted hover:text-ink"
               }`}
             >
               {t.label}
