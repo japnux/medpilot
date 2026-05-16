@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -283,8 +284,21 @@ export default function Sidebar({
           })}
         </nav>
 
-        {/* Pied : Admin (si autorisé) + Paramètres + Déconnexion */}
+        {/* Pied : Nouveautés + Admin (si autorisé) + Paramètres + Déconnexion */}
         <div className="pt-3 mt-3 border-t border-hairline space-y-0.5">
+          <Link
+            href="/changelog"
+            onClick={() => setMobileOpen(false)}
+            title={collapsed ? "Nouveautés" : undefined}
+            className={`flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-colors ${
+              pathname.startsWith("/changelog")
+                ? "bg-surface-card text-ink"
+                : "text-body hover:text-ink hover:bg-surface-card"
+            } ${collapsed ? "justify-center" : ""}`}
+          >
+            <Sparkles className="w-4 h-4 shrink-0" />
+            {!collapsed && <span>Nouveautés</span>}
+          </Link>
           {isAdmin && (
             <Link
               href="/admin"

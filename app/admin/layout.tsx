@@ -8,6 +8,7 @@ const TABS = [
   { href: "/admin/families", label: "Familles", emoji: "👨‍👩‍👧" },
   { href: "/admin/logs", label: "Logs", emoji: "📜" },
   { href: "/admin/knowledge", label: "Knowledge", emoji: "📚" },
+  { href: "/admin/changelog", label: "Changelog", emoji: "✨" },
 ];
 
 /**

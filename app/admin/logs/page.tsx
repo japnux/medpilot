@@ -27,6 +27,8 @@ export default async function AdminLogsPage() {
     watch,
     surveillance,
     aiErr,
+    decisions,
+    medications,
   ] = await Promise.all([
     svc
       .from("medical_documents")
@@ -67,6 +69,16 @@ export default async function AdminLogsPage() {
       .from("api_usage_logs")
       .select("id, created_at, endpoint, model, error_message, family_id")
       .eq("success", false)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    svc
+      .from("decisions")
+      .select("id, created_at, title, status, category, family_id")
+      .order("created_at", { ascending: false })
+      .limit(30),
+    svc
+      .from("medications")
+      .select("id, created_at, name, status, family_id")
       .order("created_at", { ascending: false })
       .limit(30),
   ]);
@@ -136,6 +148,20 @@ export default async function AdminLogsPage() {
       label: `${e.endpoint} (${shortModel(e.model)}) : ${truncate(e.error_message, 80)}`,
       family_id: e.family_id,
       badge: "ERREUR",
+    });
+  for (const d of decisions.data ?? [])
+    items.push({
+      ts: d.created_at,
+      kind: "decision",
+      label: `${d.category} — ${d.title} [${d.status}]`,
+      family_id: d.family_id,
+    });
+  for (const m of medications.data ?? [])
+    items.push({
+      ts: m.created_at,
+      kind: "medication",
+      label: `${m.name} [${m.status}]`,
+      family_id: m.family_id,
     });
 
   items.sort((a, b) => b.ts.localeCompare(a.ts));
@@ -208,6 +234,8 @@ function KindBadge({ kind }: { kind: string }) {
     symptom: "bg-rose-100 text-rose-700",
     watch: "bg-cyan-100 text-cyan-700",
     surveillance: "bg-yellow-100 text-yellow-700",
+    decision: "bg-indigo-100 text-indigo-700",
+    medication: "bg-fuchsia-100 text-fuchsia-700",
     "ai-error": "bg-red-100 text-red-700",
   };
   return (

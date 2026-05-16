@@ -23,6 +23,9 @@ export default async function AdminOverviewPage() {
     svc.from("cancer_knowledge_base").select("id", { count: "exact", head: true }),
     svc.from("watch_findings").select("id", { count: "exact", head: true }),
     svc.from("ai_cache").select("id", { count: "exact", head: true }),
+    svc.from("decisions").select("id", { count: "exact", head: true }),
+    svc.from("medications").select("id", { count: "exact", head: true }),
+    svc.from("changelog_entries").select("id", { count: "exact", head: true }),
   ]);
 
   const [
@@ -38,6 +41,9 @@ export default async function AdminOverviewPage() {
     kb,
     watch,
     aiCache,
+    decisions,
+    medications,
+    changelogCount,
   ] = counts.map((c) => c.count ?? 0);
 
   // Stats IA depuis api_usage_logs
@@ -127,9 +133,12 @@ export default async function AdminOverviewPage() {
           <Kpi label="Événements timeline" value={timeline} />
           <Kpi label="Symptômes" value={symptoms} />
           <Kpi label="Alertes surveillance" value={surveillance} />
+          <Kpi label="Décisions" value={decisions} />
+          <Kpi label="Médicaments" value={medications} />
           <Kpi label="Knowledge bases" value={kb} />
           <Kpi label="Veilles" value={watch} />
           <Kpi label="Cache IA" value={aiCache} />
+          <Kpi label="Changelog" value={changelogCount} />
         </div>
       </section>
 

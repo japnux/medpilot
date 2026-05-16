@@ -465,6 +465,38 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["ai_cache"]["Insert"]>;
         Relationships: [];
       };
+      changelog_entries: {
+        Row: {
+          id: string;
+          commit_sha: string;
+          commit_date: string;
+          commit_message: string;
+          commit_author: string | null;
+          title: string;
+          summary: string | null;
+          category: "feature" | "improvement" | "fix" | "internal";
+          user_visible: boolean;
+          published_at: string;
+          generated_model: string | null;
+          generated_at: string;
+        };
+        Insert: {
+          id?: string;
+          commit_sha: string;
+          commit_date: string;
+          commit_message: string;
+          commit_author?: string | null;
+          title: string;
+          summary?: string | null;
+          category?: "feature" | "improvement" | "fix" | "internal";
+          user_visible?: boolean;
+          published_at?: string;
+          generated_model?: string | null;
+          generated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["changelog_entries"]["Insert"]>;
+        Relationships: [];
+      };
       api_usage_logs: {
         Row: {
           id: string;
