@@ -1,39 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/browser";
 import { formatDateFr } from "@/lib/dates";
-import {
-  DECIDED_BY_OPTIONS,
-  getCategoryMeta,
-  type DecisionRow,
-} from "@/lib/decisions";
-import { Check, Circle, GitBranch, X } from "lucide-react";
+import { getCategoryMeta, type DecisionRow } from "@/lib/decisions";
+import { AlertTriangle, Check, Circle, GitBranch, Users } from "lucide-react";
+import DecideDecisionModal from "./DecideDecisionModal";
+import UrgencyBadge from "./UrgencyBadge";
+
+interface UpcomingConsultation {
+  id: string;
+  consultation_date: string;
+  consultation_type: string | null;
+  doctor_name: string | null;
+}
 
 interface Props {
-  /** Décisions liées au document (ou à la consultation) source. */
   decisions: DecisionRow[];
-  /** Label de la source pour titrer la section. */
   sourceLabel?: string;
+  upcomingConsultations?: UpcomingConsultation[];
 }
 
 /**
- * Section décisions : affiche les choix soulevés par un document ou une
- * consultation, avec un modal pour acter chaque décision (option choisie,
- * rationale, qui a tranché, date). À l'enregistrement, crée aussi un
- * timeline_event type=decision lié à la source.
+ * Affiche les décisions liées à un document ou une consultation. La modal
+ * "Acter" est partagée avec la page /decisions (4 chemins).
  */
-export default function DecisionsSection({ decisions, sourceLabel }: Props) {
+export default function DecisionsSection({
+  decisions,
+  sourceLabel,
+  upcomingConsultations = [],
+}: Props) {
   const [active, setActive] = useState<DecisionRow | null>(null);
-
   if (decisions.length === 0) return null;
 
   const pending = decisions.filter((d) => d.status === "pending");
-  const decided = decisions.filter((d) => d.status === "decided");
-  const other = decisions.filter(
-    (d) => d.status !== "pending" && d.status !== "decided",
-  );
+  const others = decisions.filter((d) => d.status !== "pending");
 
   return (
     <section className="rounded-xl border border-hairline bg-surface-card p-5 space-y-4">
@@ -53,17 +53,15 @@ export default function DecisionsSection({ decisions, sourceLabel }: Props) {
         {pending.map((d) => (
           <DecisionCard key={d.id} decision={d} onActer={() => setActive(d)} />
         ))}
-        {decided.map((d) => (
-          <DecisionCard key={d.id} decision={d} onActer={() => setActive(d)} />
-        ))}
-        {other.map((d) => (
+        {others.map((d) => (
           <DecisionCard key={d.id} decision={d} onActer={() => setActive(d)} />
         ))}
       </ul>
 
       {active && (
-        <DecideModal
+        <DecideDecisionModal
           decision={active}
+          upcomingConsultations={upcomingConsultations}
           onClose={() => setActive(null)}
         />
       )}
@@ -81,15 +79,22 @@ function DecisionCard({
   const meta = getCategoryMeta(d.category);
   const Icon = meta.icon;
   const isPending = d.status === "pending";
+  const hasObs = (d.obsolescence_signals ?? []).length > 0;
 
   return (
     <li
       className={`rounded-lg border p-3 ${
-        isPending
-          ? "border-warning/30 bg-warning/5"
-          : d.status === "decided"
-            ? "border-success/30 bg-success/5"
-            : "border-hairline bg-canvas-soft"
+        d.status === "obsolete"
+          ? "border-hairline bg-canvas-soft opacity-70"
+          : hasObs
+            ? "border-warning/40 bg-warning/5"
+            : isPending
+              ? "border-warning/30 bg-warning/5"
+              : d.status === "decided"
+                ? "border-success/30 bg-success/5"
+                : d.status === "awaiting_team"
+                  ? "border-blue-500/30 bg-blue-500/5"
+                  : "border-hairline bg-canvas-soft"
       }`}
     >
       <div className="flex items-start gap-3">
@@ -111,14 +116,25 @@ function DecisionCard({
             >
               {meta.label}
             </span>
+            <UrgencyBadge dueDate={d.due_date} />
             {d.priority === "high" && (
               <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-error/10 text-error border border-error/30">
                 Prioritaire
               </span>
             )}
-            {d.status === "pending" && (
+            {d.status === "pending" && !hasObs && (
               <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/30">
                 À trancher
+              </span>
+            )}
+            {hasObs && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/30">
+                <AlertTriangle className="w-3 h-3" /> Possiblement caduque
+              </span>
+            )}
+            {d.status === "awaiting_team" && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 border border-blue-500/30">
+                <Users className="w-3 h-3" /> Attente équipe
               </span>
             )}
             {d.status === "decided" && (
@@ -126,14 +142,9 @@ function DecisionCard({
                 <Check className="w-3 h-3" /> Décidée
               </span>
             )}
-            {d.status === "abandoned" && (
+            {d.status === "obsolete" && (
               <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-strong text-muted">
-                Abandonnée
-              </span>
-            )}
-            {d.due_date && d.status === "pending" && (
-              <span className="text-[10px] text-muted">
-                Échéance {formatDateFr(d.due_date)}
+                Caduque
               </span>
             )}
           </div>
@@ -164,7 +175,8 @@ function DecisionCard({
           {d.status === "decided" && (
             <div className="mt-2 text-xs space-y-0.5">
               <p className="text-body-strong">
-                <span className="text-muted">Choix :</span> {d.chosen_option}
+                <span className="text-muted">Choix :</span>{" "}
+                {d.chosen_option ?? d.external_response_summary}
               </p>
               {d.rationale && (
                 <p className="text-muted italic">« {d.rationale} »</p>
@@ -175,288 +187,26 @@ function DecisionCard({
               </p>
             </div>
           )}
+
+          {d.status === "awaiting_team" && d.team_note && (
+            <p className="mt-1.5 text-xs text-muted italic">
+              Note équipe : {d.team_note}
+            </p>
+          )}
         </div>
 
         <button
           type="button"
           onClick={onActer}
           className={`shrink-0 text-xs px-2.5 py-1.5 rounded-md border transition-colors ${
-            isPending
+            isPending || hasObs
               ? "border-ink bg-ink text-canvas hover:bg-ink/90"
               : "border-hairline-strong text-body hover:text-ink"
           }`}
         >
-          {isPending ? "Acter" : "Modifier"}
+          {isPending || hasObs ? "Acter" : "Modifier"}
         </button>
       </div>
     </li>
-  );
-}
-
-function DecideModal({
-  decision,
-  onClose,
-}: {
-  decision: DecisionRow;
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [chosenOption, setChosenOption] = useState(decision.chosen_option ?? "");
-  const [customOption, setCustomOption] = useState("");
-  const [rationale, setRationale] = useState(decision.rationale ?? "");
-  const [decidedBy, setDecidedBy] = useState(decision.decided_by ?? "patient");
-  const [decidedAt, setDecidedAt] = useState(
-    decision.decided_at ?? new Date().toISOString().slice(0, 10),
-  );
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const useCustom = chosenOption === "__custom__";
-  const finalChoice = useCustom ? customOption.trim() : chosenOption;
-
-  async function submit() {
-    if (!finalChoice) {
-      setError("Indique l'option choisie.");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const supabase = createClient();
-      const { error: upErr } = await supabase
-        .from("decisions")
-        .update({
-          status: "decided",
-          chosen_option: finalChoice,
-          rationale: rationale.trim() || null,
-          decided_by: decidedBy,
-          decided_at: decidedAt,
-        })
-        .eq("id", decision.id);
-      if (upErr) throw upErr;
-
-      // Timeline event lié pour rendre la décision visible chronologiquement
-      await supabase.from("timeline_events").insert({
-        family_id: decision.family_id,
-        event_type: "decision",
-        event_date: decidedAt,
-        title: `Décision : ${decision.title}`,
-        summary: `${finalChoice}${rationale ? ` — ${rationale}` : ""}`,
-        is_critical: decision.priority === "high",
-        linked_document_id: decision.source_document_id,
-        linked_consultation_id: decision.source_consultation_id,
-      });
-
-      router.refresh();
-      onClose();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur d'enregistrement");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function abandon() {
-    if (!confirm("Marquer cette décision comme abandonnée ?")) return;
-    setSaving(true);
-    try {
-      const supabase = createClient();
-      await supabase
-        .from("decisions")
-        .update({ status: "abandoned" })
-        .eq("id", decision.id);
-      router.refresh();
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-canvas rounded-xl border border-hairline shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-start justify-between gap-3 p-5 border-b border-hairline">
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-muted">
-              Acter la décision
-            </p>
-            <h3 className="text-base font-medium text-ink truncate">
-              {decision.title}
-            </h3>
-            {decision.question && (
-              <p className="text-xs text-body mt-0.5">{decision.question}</p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 w-7 h-7 rounded-md text-muted hover:text-ink hover:bg-surface-card flex items-center justify-center"
-            aria-label="Fermer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </header>
-
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="text-xs font-medium text-ink block mb-1.5">
-              Option choisie
-            </label>
-            <div className="space-y-1.5">
-              {decision.options.map((o, i) => (
-                <label
-                  key={i}
-                  className={`flex items-start gap-2 p-2.5 rounded-md border cursor-pointer transition-colors ${
-                    chosenOption === o.label
-                      ? "border-ink bg-surface-card"
-                      : "border-hairline hover:bg-surface-card"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="option"
-                    value={o.label}
-                    checked={chosenOption === o.label}
-                    onChange={() => setChosenOption(o.label)}
-                    className="mt-1"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-ink">
-                      {o.label}
-                      {o.recommended && (
-                        <span className="ml-1.5 text-[10px] text-success">
-                          ✓ recommandée
-                        </span>
-                      )}
-                    </p>
-                    {(o.pros?.length || o.cons?.length) && (
-                      <div className="mt-1 text-[11px] space-y-0.5">
-                        {o.pros?.map((p, j) => (
-                          <p key={`p${j}`} className="text-success">
-                            + {p}
-                          </p>
-                        ))}
-                        {o.cons?.map((c, j) => (
-                          <p key={`c${j}`} className="text-warning">
-                            − {c}
-                          </p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </label>
-              ))}
-              <label
-                className={`flex items-center gap-2 p-2.5 rounded-md border cursor-pointer transition-colors ${
-                  useCustom
-                    ? "border-ink bg-surface-card"
-                    : "border-hairline hover:bg-surface-card"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="option"
-                  value="__custom__"
-                  checked={useCustom}
-                  onChange={() => setChosenOption("__custom__")}
-                />
-                <span className="text-sm text-body">Autre choix (libre)</span>
-              </label>
-              {useCustom && (
-                <input
-                  type="text"
-                  value={customOption}
-                  onChange={(e) => setCustomOption(e.target.value)}
-                  placeholder="Décris le choix retenu"
-                  className="w-full text-sm border border-hairline rounded-md px-3 py-2 mt-1"
-                />
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-ink block mb-1.5">
-              Pourquoi ce choix (rationale)
-            </label>
-            <textarea
-              value={rationale}
-              onChange={(e) => setRationale(e.target.value)}
-              rows={3}
-              placeholder="Ex : Régis a accepté après l'explication du Pr Baudin, profil haut risque sans contre-indication."
-              className="w-full text-sm border border-hairline rounded-md px-3 py-2"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-ink block mb-1.5">
-                Décidé par
-              </label>
-              <select
-                value={decidedBy}
-                onChange={(e) => setDecidedBy(e.target.value)}
-                className="w-full text-sm border border-hairline rounded-md px-3 py-2 bg-canvas"
-              >
-                {DECIDED_BY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-ink block mb-1.5">
-                Date
-              </label>
-              <input
-                type="date"
-                value={decidedAt}
-                onChange={(e) => setDecidedAt(e.target.value)}
-                className="w-full text-sm border border-hairline rounded-md px-3 py-2"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p className="text-xs text-error">{error}</p>
-          )}
-        </div>
-
-        <footer className="flex items-center justify-between gap-2 p-4 border-t border-hairline">
-          <button
-            type="button"
-            onClick={abandon}
-            disabled={saving}
-            className="text-xs text-muted hover:text-error disabled:opacity-50"
-          >
-            Abandonner
-          </button>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="text-xs px-3 py-2 rounded-md border border-hairline-strong text-body hover:text-ink"
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={saving}
-              className="text-xs px-3 py-2 rounded-md bg-ink text-canvas hover:bg-ink/90 disabled:opacity-50"
-            >
-              {saving ? "Enregistrement…" : "Enregistrer la décision"}
-            </button>
-          </div>
-        </footer>
-      </div>
-    </div>
   );
 }

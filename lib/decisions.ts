@@ -26,7 +26,14 @@ export type DecisionCategory =
   | "administratif"
   | "autre";
 
-export type DecisionStatus = "pending" | "decided" | "abandoned" | "na";
+export type DecisionStatus =
+  | "pending"
+  | "decided"
+  | "awaiting_team"
+  | "awaiting_result"
+  | "obsolete"
+  | "abandoned"
+  | "na";
 export type DecisionPriority = "high" | "normal" | "low";
 
 export interface DecisionOption {
@@ -34,6 +41,23 @@ export interface DecisionOption {
   pros?: string[];
   cons?: string[];
   recommended?: boolean;
+}
+
+export interface ObsolescenceSignal {
+  type:
+    | "deadline_30d_past"
+    | "surgery_passed_with_pre_op_mention"
+    | "consultation_after_creation"
+    | "event_referenced_passed";
+  label: string;
+  confidence: "high" | "medium" | "low";
+}
+
+export interface RecommendationSource {
+  type?: "document" | "knowledge_base" | "claude_suggestion";
+  source_id?: string | null;
+  source_label?: string;
+  confidence?: "high" | "medium" | "low";
 }
 
 export interface DecisionRow {
@@ -52,6 +76,18 @@ export interface DecisionRow {
   decided_by: string | null;
   source_document_id: string | null;
   source_consultation_id: string | null;
+  obsolescence_detected_at?: string | null;
+  obsolescence_reason?: string | null;
+  obsolescence_signals?: ObsolescenceSignal[];
+  awaiting_result_description?: string | null;
+  recommendation_source?: RecommendationSource;
+  cluster_id?: string | null;
+  cluster_label?: string | null;
+  is_pinned?: boolean;
+  external_response_summary?: string | null;
+  external_response_source?: string | null;
+  external_response_date?: string | null;
+  team_note?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -587,13 +587,32 @@ export interface Database {
           priority: "high" | "normal" | "low";
           due_date: string | null;
           options: unknown;
-          status: "pending" | "decided" | "abandoned" | "na";
+          status:
+            | "pending"
+            | "decided"
+            | "awaiting_team"
+            | "awaiting_result"
+            | "obsolete"
+            | "abandoned"
+            | "na";
           decided_at: string | null;
           chosen_option: string | null;
           rationale: string | null;
           decided_by: string | null;
           source_document_id: string | null;
           source_consultation_id: string | null;
+          obsolescence_detected_at: string | null;
+          obsolescence_reason: string | null;
+          obsolescence_signals: unknown;
+          awaiting_result_description: string | null;
+          recommendation_source: unknown;
+          cluster_id: string | null;
+          cluster_label: string | null;
+          is_pinned: boolean;
+          external_response_summary: string | null;
+          external_response_source: string | null;
+          external_response_date: string | null;
+          team_note: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -614,13 +633,32 @@ export interface Database {
           priority?: "high" | "normal" | "low";
           due_date?: string | null;
           options?: unknown;
-          status?: "pending" | "decided" | "abandoned" | "na";
+          status?:
+            | "pending"
+            | "decided"
+            | "awaiting_team"
+            | "awaiting_result"
+            | "obsolete"
+            | "abandoned"
+            | "na";
           decided_at?: string | null;
           chosen_option?: string | null;
           rationale?: string | null;
           decided_by?: string | null;
           source_document_id?: string | null;
           source_consultation_id?: string | null;
+          obsolescence_detected_at?: string | null;
+          obsolescence_reason?: string | null;
+          obsolescence_signals?: unknown;
+          awaiting_result_description?: string | null;
+          recommendation_source?: unknown;
+          cluster_id?: string | null;
+          cluster_label?: string | null;
+          is_pinned?: boolean;
+          external_response_summary?: string | null;
+          external_response_source?: string | null;
+          external_response_date?: string | null;
+          team_note?: string | null;
           created_by?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["decisions"]["Insert"]>;

@@ -190,7 +190,12 @@ export const CONSULTATION_PREP_PROMPT = `Tu prépares une consultation médicale
 # Équipe médicale connue du patient
 {{care_team}}
 
-# Décisions en attente (à inscrire à l'ordre du jour du RDV)
+# Décisions explicitement à aborder lors de CE RDV (status=awaiting_team)
+Ces décisions ont été flaggées pour CE rendez-vous précisément. À COUVRIR
+SYSTÉMATIQUEMENT par au moins une question dans la sortie.
+{{awaiting_for_this_consult}}
+
+# Autres décisions en attente (à inscrire à l'ordre du jour si pertinent)
 {{pending_decisions}}
 
 # Décisions déjà tranchées (NE PAS reposer en question, juste s'y appuyer)

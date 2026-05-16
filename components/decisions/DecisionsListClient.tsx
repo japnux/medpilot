@@ -6,12 +6,26 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { formatDateFr } from "@/lib/dates";
 import {
-  DECIDED_BY_OPTIONS,
   getCategoryMeta,
   type DecisionRow,
   type DecisionStatus,
 } from "@/lib/decisions";
-import { Check, FileText, GitBranch, Stethoscope, X } from "lucide-react";
+import { selectTop3 } from "@/lib/decisions-scoring";
+import {
+  AlertCircle,
+  AlertTriangle,
+  Check,
+  FileText,
+  GitBranch,
+  Mailbox,
+  Pin,
+  Sparkles,
+  Stethoscope,
+  Telescope,
+  Users,
+} from "lucide-react";
+import DecideDecisionModal from "./DecideDecisionModal";
+import UrgencyBadge from "./UrgencyBadge";
 
 interface SourceMap {
   documents: Record<string, { title: string; document_date: string | null }>;
@@ -21,54 +35,262 @@ interface SourceMap {
   >;
 }
 
+interface UpcomingConsultation {
+  id: string;
+  consultation_date: string;
+  consultation_type: string | null;
+  doctor_name: string | null;
+}
+
 interface Props {
   decisions: DecisionRow[];
   sources: SourceMap;
+  upcomingConsultations: UpcomingConsultation[];
 }
 
-const STATUS_TABS: Array<{ id: DecisionStatus | "all"; label: string }> = [
+type Filter =
+  | "urgent"
+  | "pending"
+  | "awaiting_team"
+  | "awaiting_result"
+  | "obsolete_flagged"
+  | "decided"
+  | "all";
+
+interface TabDef {
+  id: Filter;
+  label: string;
+}
+
+const TABS: TabDef[] = [
+  { id: "urgent", label: "Urgentes" },
   { id: "pending", label: "À trancher" },
+  { id: "awaiting_team", label: "Attente équipe" },
+  { id: "awaiting_result", label: "Attente résultat" },
   { id: "decided", label: "Décidées" },
-  { id: "abandoned", label: "Abandonnées" },
+  { id: "obsolete_flagged", label: "Obsolètes" },
   { id: "all", label: "Toutes" },
 ];
 
-export default function DecisionsListClient({ decisions, sources }: Props) {
-  const [statusFilter, setStatusFilter] = useState<DecisionStatus | "all">(
-    "pending",
-  );
+export default function DecisionsListClient({
+  decisions,
+  sources,
+  upcomingConsultations,
+}: Props) {
+  const [filter, setFilter] = useState<Filter>("urgent");
   const [active, setActive] = useState<DecisionRow | null>(null);
+  const router = useRouter();
 
-  const filtered = useMemo(() => {
-    if (statusFilter === "all") return decisions;
-    return decisions.filter((d) => d.status === statusFilter);
-  }, [decisions, statusFilter]);
+  const top3 = useMemo(() => selectTop3(decisions), [decisions]);
 
   const counts = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const d of decisions) map[d.status] = (map[d.status] ?? 0) + 1;
-    map.all = decisions.length;
-    return map;
+    const c = {
+      urgent: 0,
+      pending: 0,
+      awaiting_team: 0,
+      awaiting_result: 0,
+      obsolete_flagged: 0,
+      decided: 0,
+      all: decisions.length,
+    } as Record<Filter, number>;
+    for (const d of decisions) {
+      if (d.status === "decided") c.decided++;
+      else if (d.status === "obsolete") c.obsolete_flagged++;
+      else if (d.status === "awaiting_team") c.awaiting_team++;
+      else if (d.status === "awaiting_result") c.awaiting_result++;
+      else if (d.status === "pending") {
+        c.pending++;
+        // urgent : pending sans obsolescence + (priority high ou échéance <14j)
+        const hasObs = (d.obsolescence_signals ?? []).length > 0;
+        const days = d.due_date
+          ? Math.floor(
+              (new Date(d.due_date).getTime() - Date.now()) / 86_400_000,
+            )
+          : null;
+        const isUrgent =
+          !hasObs && (d.priority === "high" || (days !== null && days <= 14));
+        if (isUrgent) c.urgent++;
+        if (hasObs) c.obsolete_flagged++;
+      }
+    }
+    return c;
   }, [decisions]);
+
+  const filtered = useMemo(() => {
+    if (filter === "all") return decisions;
+    if (filter === "decided") return decisions.filter((d) => d.status === "decided");
+    if (filter === "awaiting_team")
+      return decisions.filter((d) => d.status === "awaiting_team");
+    if (filter === "awaiting_result")
+      return decisions.filter((d) => d.status === "awaiting_result");
+    if (filter === "obsolete_flagged")
+      return decisions.filter(
+        (d) =>
+          d.status === "obsolete" ||
+          (d.status === "pending" && (d.obsolescence_signals ?? []).length > 0),
+      );
+    if (filter === "urgent")
+      return decisions.filter((d) => {
+        if (d.status !== "pending") return false;
+        if ((d.obsolescence_signals ?? []).length > 0) return false;
+        const days = d.due_date
+          ? Math.floor(
+              (new Date(d.due_date).getTime() - Date.now()) / 86_400_000,
+            )
+          : null;
+        return d.priority === "high" || (days !== null && days <= 14);
+      });
+    // pending
+    return decisions.filter((d) => d.status === "pending");
+  }, [decisions, filter]);
+
+  async function togglePin(d: DecisionRow) {
+    const supabase = createClient();
+    await supabase
+      .from("decisions")
+      .update({ is_pinned: !d.is_pinned })
+      .eq("id", d.id);
+    router.refresh();
+  }
+
+  async function batchArchiveObsoletes() {
+    const candidates = decisions.filter(
+      (d) =>
+        d.status === "pending" && (d.obsolescence_signals ?? []).length > 0,
+    );
+    if (candidates.length === 0) return;
+    if (
+      !confirm(
+        `Marquer ${candidates.length} décision(s) comme caduques ? Tu pourras les restaurer ensuite si besoin.`,
+      )
+    )
+      return;
+    const supabase = createClient();
+    await supabase
+      .from("decisions")
+      .update({
+        status: "obsolete",
+        obsolescence_reason: "Archivage en masse depuis la détection automatique",
+        obsolescence_detected_at: new Date().toISOString(),
+      })
+      .in(
+        "id",
+        candidates.map((d) => d.id),
+      );
+    router.refresh();
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <header>
         <h1 className="text-2xl font-semibold text-ink">Décisions</h1>
         <p className="text-sm text-muted mt-1">
-          Tous les choix soulevés par les documents et consultations, leur
-          statut et l&apos;option retenue.
+          Cockpit des choix soulevés par les documents et consultations.
         </p>
       </header>
 
-      {/* Tabs statut */}
-      <nav className="flex gap-1 border-b border-hairline -mb-px">
-        {STATUS_TABS.map((t) => (
+      {/* Header synthèse : compteurs cliquables */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <SummaryCard
+          icon={<AlertCircle className="w-4 h-4" />}
+          label="Urgentes"
+          count={counts.urgent}
+          tone="error"
+          onClick={() => setFilter("urgent")}
+          active={filter === "urgent"}
+        />
+        <SummaryCard
+          icon={<Users className="w-4 h-4" />}
+          label="Attente équipe"
+          count={counts.awaiting_team}
+          tone="info"
+          onClick={() => setFilter("awaiting_team")}
+          active={filter === "awaiting_team"}
+        />
+        <SummaryCard
+          icon={<Telescope className="w-4 h-4" />}
+          label="Attente résultat"
+          count={counts.awaiting_result}
+          tone="warning"
+          onClick={() => setFilter("awaiting_result")}
+          active={filter === "awaiting_result"}
+        />
+        <SummaryCard
+          icon={<AlertTriangle className="w-4 h-4" />}
+          label="Obsolètes"
+          count={counts.obsolete_flagged}
+          tone="muted"
+          onClick={() => setFilter("obsolete_flagged")}
+          active={filter === "obsolete_flagged"}
+          action={
+            counts.obsolete_flagged > 0 ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  batchArchiveObsoletes();
+                }}
+                className="text-[10px] underline hover:text-ink"
+              >
+                Archiver tout
+              </button>
+            ) : null
+          }
+        />
+      </div>
+
+      {/* Top 3 banner */}
+      {top3.length > 0 && (
+        <section className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-purple-600" />
+            <h2 className="text-sm font-medium text-ink">
+              Top {top3.length} à traiter
+            </h2>
+          </div>
+          <ol className="space-y-1.5">
+            {top3.map((d, i) => (
+              <li
+                key={d.id}
+                className="flex items-start gap-2 text-sm"
+              >
+                <span className="shrink-0 w-5 h-5 rounded-full bg-purple-600 text-canvas text-[10px] font-medium flex items-center justify-center mt-0.5">
+                  {i + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setActive(d)}
+                    className="text-left hover:underline"
+                  >
+                    <span className="font-medium text-ink">{d.title}</span>
+                  </button>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                    <span className="text-[10px] uppercase tracking-wider text-muted">
+                      {getCategoryMeta(d.category).label}
+                    </span>
+                    <UrgencyBadge dueDate={d.due_date} />
+                    {d.priority === "high" && (
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-error/10 text-error">
+                        Prioritaire
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {/* Tabs */}
+      <nav className="flex gap-1 border-b border-hairline overflow-x-auto -mb-px">
+        {TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setStatusFilter(t.id)}
-            className={`px-3 py-2 text-sm border-b-2 transition-colors ${
-              statusFilter === t.id
+            onClick={() => setFilter(t.id)}
+            className={`whitespace-nowrap px-3 py-2 text-sm border-b-2 transition-colors ${
+              filter === t.id
                 ? "border-ink text-ink"
                 : "border-transparent text-muted hover:text-ink"
             }`}
@@ -83,32 +305,88 @@ export default function DecisionsListClient({ decisions, sources }: Props) {
         ))}
       </nav>
 
-      {filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-hairline bg-canvas-soft p-8 text-center">
-          <GitBranch className="w-8 h-8 mx-auto text-muted-soft mb-2" />
-          <p className="text-sm text-muted italic">
-            {statusFilter === "pending"
-              ? "Aucune décision en attente. Les nouvelles décisions extraites de tes documents apparaîtront ici."
-              : "Aucune décision dans cette catégorie."}
-          </p>
-        </div>
-      ) : (
-        <ul className="space-y-2">
-          {filtered.map((d) => (
-            <DecisionRowCard
-              key={d.id}
-              decision={d}
-              sources={sources}
-              onActer={() => setActive(d)}
-            />
-          ))}
-        </ul>
-      )}
+      {/* Liste : espace 6 sous les tabs */}
+      <div className="pt-2">
+        {filtered.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-hairline bg-canvas-soft p-8 text-center">
+            <GitBranch className="w-8 h-8 mx-auto text-muted-soft mb-2" />
+            <p className="text-sm text-muted italic">
+              {filter === "urgent"
+                ? "Aucune décision urgente. Respire un peu."
+                : filter === "obsolete_flagged"
+                  ? "Aucune décision obsolète détectée."
+                  : "Aucune décision dans cette catégorie."}
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {filtered.map((d) => (
+              <DecisionRowCard
+                key={d.id}
+                decision={d}
+                sources={sources}
+                onActer={() => setActive(d)}
+                onTogglePin={() => togglePin(d)}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
 
       {active && (
-        <DecideModal decision={active} onClose={() => setActive(null)} />
+        <DecideDecisionModal
+          decision={active}
+          upcomingConsultations={upcomingConsultations}
+          onClose={() => setActive(null)}
+        />
       )}
     </div>
+  );
+}
+
+function SummaryCard({
+  icon,
+  label,
+  count,
+  tone,
+  active,
+  onClick,
+  action,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  count: number;
+  tone: "error" | "warning" | "info" | "muted";
+  active: boolean;
+  onClick: () => void;
+  action?: React.ReactNode;
+}) {
+  const toneClass = {
+    error: "border-error/30 bg-error/5 text-error",
+    warning: "border-warning/30 bg-warning/5 text-warning",
+    info: "border-blue-500/30 bg-blue-500/5 text-blue-600",
+    muted: "border-hairline bg-canvas-soft text-muted",
+  }[tone];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left p-3 rounded-lg border transition-colors ${toneClass} ${
+        active ? "ring-2 ring-ink/30" : ""
+      }`}
+    >
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1.5">
+          {icon}
+          <span className="text-[10px] uppercase tracking-wider">{label}</span>
+        </div>
+      </div>
+      <div className="mt-1 flex items-baseline justify-between gap-1">
+        <span className="text-2xl font-semibold text-ink">{count}</span>
+        {action}
+      </div>
+    </button>
   );
 }
 
@@ -116,14 +394,22 @@ function DecisionRowCard({
   decision: d,
   sources,
   onActer,
+  onTogglePin,
 }: {
   decision: DecisionRow;
   sources: SourceMap;
   onActer: () => void;
+  onTogglePin: () => void;
 }) {
   const meta = getCategoryMeta(d.category);
   const Icon = meta.icon;
   const isPending = d.status === "pending";
+  const isAwaitingTeam = d.status === "awaiting_team";
+  const isAwaitingResult = d.status === "awaiting_result";
+  const isDecided = d.status === "decided";
+  const isObsolete = d.status === "obsolete";
+  const hasObsFlag =
+    isPending && (d.obsolescence_signals ?? []).length > 0;
 
   const sourceDoc = d.source_document_id
     ? sources.documents[d.source_document_id]
@@ -132,16 +418,22 @@ function DecisionRowCard({
     ? sources.consultations[d.source_consultation_id]
     : null;
 
+  const cardTone = isObsolete
+    ? "border-hairline bg-canvas-soft opacity-70"
+    : hasObsFlag
+      ? "border-warning/40 bg-warning/5"
+      : isAwaitingTeam
+        ? "border-blue-500/30 bg-blue-500/5"
+        : isAwaitingResult
+          ? "border-yellow-500/30 bg-yellow-500/5"
+          : isPending
+            ? "border-hairline bg-surface-card"
+            : isDecided
+              ? "border-success/30 bg-success/5"
+              : "border-hairline bg-canvas-soft";
+
   return (
-    <li
-      className={`rounded-lg border p-3 ${
-        isPending
-          ? "border-warning/30 bg-warning/5"
-          : d.status === "decided"
-            ? "border-success/30 bg-success/5"
-            : "border-hairline bg-canvas-soft"
-      }`}
-    >
+    <li className={`rounded-lg border p-3 ${cardTone}`}>
       <div className="flex items-start gap-3">
         <div
           className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center"
@@ -161,19 +453,40 @@ function DecisionRowCard({
             >
               {meta.label}
             </span>
+            <UrgencyBadge dueDate={d.due_date} />
             {d.priority === "high" && (
               <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-error/10 text-error border border-error/30">
                 Prioritaire
               </span>
             )}
-            {d.status === "decided" && (
+            {isAwaitingTeam && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 border border-blue-500/30">
+                <Users className="w-3 h-3" /> Attente équipe
+              </span>
+            )}
+            {isAwaitingResult && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-600 border border-yellow-500/30">
+                <Telescope className="w-3 h-3" /> Attente résultat
+              </span>
+            )}
+            {isDecided && (
               <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/10 text-success border border-success/30">
                 <Check className="w-3 h-3" /> Décidée
               </span>
             )}
-            {d.due_date && isPending && (
-              <span className="text-[10px] text-muted">
-                Échéance {formatDateFr(d.due_date)}
+            {isObsolete && (
+              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-strong text-muted">
+                Caduque
+              </span>
+            )}
+            {hasObsFlag && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/30">
+                <AlertTriangle className="w-3 h-3" /> Possiblement caduque
+              </span>
+            )}
+            {d.is_pinned && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-purple-600">
+                <Pin className="w-3 h-3 fill-current" /> Épinglée
               </span>
             )}
           </div>
@@ -183,13 +496,17 @@ function DecisionRowCard({
             <p className="text-xs text-body mt-0.5">{d.question}</p>
           )}
 
-          {d.status === "decided" && (
+          {isDecided && (
             <div className="mt-2 text-xs space-y-0.5">
               <p className="text-body-strong">
-                <span className="text-muted">Choix :</span> {d.chosen_option}
+                <span className="text-muted">Choix :</span>{" "}
+                {d.chosen_option ?? d.external_response_summary}
               </p>
               {d.rationale && (
                 <p className="text-muted italic">« {d.rationale} »</p>
+              )}
+              {d.external_response_summary && !d.rationale && (
+                <p className="text-muted italic">« {d.external_response_summary} »</p>
               )}
               <p className="text-muted">
                 {d.decided_by && <span>par {d.decided_by} · </span>}
@@ -198,8 +515,20 @@ function DecisionRowCard({
             </div>
           )}
 
+          {isAwaitingTeam && d.team_note && (
+            <p className="mt-1.5 text-xs text-muted italic">
+              Note équipe : {d.team_note}
+            </p>
+          )}
+
+          {isObsolete && d.obsolescence_reason && (
+            <p className="mt-1.5 text-xs text-muted italic">
+              Raison : {d.obsolescence_reason}
+            </p>
+          )}
+
           {(sourceDoc || sourceConsult) && (
-            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted">
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted">
               {sourceDoc && (
                 <Link
                   href={`/documents/${d.source_document_id}`}
@@ -215,294 +544,47 @@ function DecisionRowCard({
                   className="inline-flex items-center gap-1 hover:text-ink"
                 >
                   <Stethoscope className="w-3 h-3" />
-                  Consult {sourceConsult.consultation_type} ·{" "}
-                  {formatDateFr(sourceConsult.consultation_date)}
+                  Consult · {formatDateFr(sourceConsult.consultation_date)}
                 </Link>
+              )}
+              {d.external_response_source && (
+                <span className="inline-flex items-center gap-1">
+                  <Mailbox className="w-3 h-3" />
+                  {d.external_response_source}
+                </span>
               )}
             </div>
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={onActer}
-          className={`shrink-0 text-xs px-2.5 py-1.5 rounded-md border transition-colors ${
-            isPending
-              ? "border-ink bg-ink text-canvas hover:bg-ink/90"
-              : "border-hairline-strong text-body hover:text-ink"
-          }`}
-        >
-          {isPending ? "Acter" : "Modifier"}
-        </button>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={onActer}
+            className={`text-xs px-2.5 py-1.5 rounded-md border transition-colors ${
+              isPending || hasObsFlag
+                ? "border-ink bg-ink text-canvas hover:bg-ink/90"
+                : "border-hairline-strong text-body hover:text-ink"
+            }`}
+          >
+            {isPending || hasObsFlag ? "Acter" : "Modifier"}
+          </button>
+          {!isObsolete && (
+            <button
+              type="button"
+              onClick={onTogglePin}
+              title={d.is_pinned ? "Désépingler" : "Épingler dans le Top 3"}
+              className={`p-1 rounded-md hover:bg-surface-card ${
+                d.is_pinned ? "text-purple-600" : "text-muted"
+              }`}
+            >
+              <Pin
+                className={`w-3.5 h-3.5 ${d.is_pinned ? "fill-current" : ""}`}
+              />
+            </button>
+          )}
+        </div>
       </div>
     </li>
   );
 }
-
-// Modal partagé avec la page document — duplique la logique ici pour rester
-// autonome (la liste n'importe pas DecisionsSection).
-function DecideModal({
-  decision,
-  onClose,
-}: {
-  decision: DecisionRow;
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [chosenOption, setChosenOption] = useState(decision.chosen_option ?? "");
-  const [customOption, setCustomOption] = useState("");
-  const [rationale, setRationale] = useState(decision.rationale ?? "");
-  const [decidedBy, setDecidedBy] = useState(decision.decided_by ?? "patient");
-  const [decidedAt, setDecidedAt] = useState(
-    decision.decided_at ?? new Date().toISOString().slice(0, 10),
-  );
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const useCustom = chosenOption === "__custom__";
-  const finalChoice = useCustom ? customOption.trim() : chosenOption;
-
-  async function submit() {
-    if (!finalChoice) {
-      setError("Indique l'option choisie.");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const supabase = createClient();
-      const { error: upErr } = await supabase
-        .from("decisions")
-        .update({
-          status: "decided",
-          chosen_option: finalChoice,
-          rationale: rationale.trim() || null,
-          decided_by: decidedBy,
-          decided_at: decidedAt,
-        })
-        .eq("id", decision.id);
-      if (upErr) throw upErr;
-
-      await supabase.from("timeline_events").insert({
-        family_id: decision.family_id,
-        event_type: "decision",
-        event_date: decidedAt,
-        title: `Décision : ${decision.title}`,
-        summary: `${finalChoice}${rationale ? ` — ${rationale}` : ""}`,
-        is_critical: decision.priority === "high",
-        linked_document_id: decision.source_document_id,
-        linked_consultation_id: decision.source_consultation_id,
-      });
-
-      router.refresh();
-      onClose();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur d'enregistrement");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function abandon() {
-    if (!confirm("Marquer cette décision comme abandonnée ?")) return;
-    setSaving(true);
-    try {
-      const supabase = createClient();
-      await supabase
-        .from("decisions")
-        .update({ status: "abandoned" })
-        .eq("id", decision.id);
-      router.refresh();
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-canvas rounded-xl border border-hairline shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-start justify-between gap-3 p-5 border-b border-hairline">
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-muted">
-              Acter la décision
-            </p>
-            <h3 className="text-base font-medium text-ink truncate">
-              {decision.title}
-            </h3>
-            {decision.question && (
-              <p className="text-xs text-body mt-0.5">{decision.question}</p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 w-7 h-7 rounded-md text-muted hover:text-ink hover:bg-surface-card flex items-center justify-center"
-            aria-label="Fermer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </header>
-
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="text-xs font-medium text-ink block mb-1.5">
-              Option choisie
-            </label>
-            <div className="space-y-1.5">
-              {decision.options.map((o, i) => (
-                <label
-                  key={i}
-                  className={`flex items-start gap-2 p-2.5 rounded-md border cursor-pointer transition-colors ${
-                    chosenOption === o.label
-                      ? "border-ink bg-surface-card"
-                      : "border-hairline hover:bg-surface-card"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="option"
-                    value={o.label}
-                    checked={chosenOption === o.label}
-                    onChange={() => setChosenOption(o.label)}
-                    className="mt-1"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-ink">
-                      {o.label}
-                      {o.recommended && (
-                        <span className="ml-1.5 text-[10px] text-success">
-                          ✓ recommandée
-                        </span>
-                      )}
-                    </p>
-                    {(o.pros?.length || o.cons?.length) && (
-                      <div className="mt-1 text-[11px] space-y-0.5">
-                        {o.pros?.map((p, j) => (
-                          <p key={`p${j}`} className="text-success">
-                            + {p}
-                          </p>
-                        ))}
-                        {o.cons?.map((c, j) => (
-                          <p key={`c${j}`} className="text-warning">
-                            − {c}
-                          </p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </label>
-              ))}
-              <label
-                className={`flex items-center gap-2 p-2.5 rounded-md border cursor-pointer transition-colors ${
-                  useCustom
-                    ? "border-ink bg-surface-card"
-                    : "border-hairline hover:bg-surface-card"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="option"
-                  value="__custom__"
-                  checked={useCustom}
-                  onChange={() => setChosenOption("__custom__")}
-                />
-                <span className="text-sm text-body">Autre choix (libre)</span>
-              </label>
-              {useCustom && (
-                <input
-                  type="text"
-                  value={customOption}
-                  onChange={(e) => setCustomOption(e.target.value)}
-                  placeholder="Décris le choix retenu"
-                  className="w-full text-sm border border-hairline rounded-md px-3 py-2 mt-1"
-                />
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-ink block mb-1.5">
-              Pourquoi ce choix (rationale)
-            </label>
-            <textarea
-              value={rationale}
-              onChange={(e) => setRationale(e.target.value)}
-              rows={3}
-              placeholder="Ex : Régis a accepté après l'explication du Pr Baudin, profil haut risque."
-              className="w-full text-sm border border-hairline rounded-md px-3 py-2"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-ink block mb-1.5">
-                Décidé par
-              </label>
-              <select
-                value={decidedBy}
-                onChange={(e) => setDecidedBy(e.target.value)}
-                className="w-full text-sm border border-hairline rounded-md px-3 py-2 bg-canvas"
-              >
-                {DECIDED_BY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-ink block mb-1.5">
-                Date
-              </label>
-              <input
-                type="date"
-                value={decidedAt}
-                onChange={(e) => setDecidedAt(e.target.value)}
-                className="w-full text-sm border border-hairline rounded-md px-3 py-2"
-              />
-            </div>
-          </div>
-
-          {error && <p className="text-xs text-error">{error}</p>}
-        </div>
-
-        <footer className="flex items-center justify-between gap-2 p-4 border-t border-hairline">
-          <button
-            type="button"
-            onClick={abandon}
-            disabled={saving}
-            className="text-xs text-muted hover:text-error disabled:opacity-50"
-          >
-            Abandonner
-          </button>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="text-xs px-3 py-2 rounded-md border border-hairline-strong text-body hover:text-ink"
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={saving}
-              className="text-xs px-3 py-2 rounded-md bg-ink text-canvas hover:bg-ink/90 disabled:opacity-50"
-            >
-              {saving ? "Enregistrement…" : "Enregistrer la décision"}
-            </button>
-          </div>
-        </footer>
-      </div>
-    </div>
-  );
-}
-

@@ -39,13 +39,24 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 
   const analysis = doc.analysis_summary as unknown as DocumentAnalysisResult | null;
 
-  const { data: decisions } = await supabase
-    .from("decisions")
-    .select("*")
-    .eq("source_document_id", id)
-    .order("status", { ascending: true })
-    .order("priority", { ascending: true })
-    .order("created_at", { ascending: false });
+  const today = new Date().toISOString().slice(0, 10);
+  const [{ data: decisions }, { data: upcomingConsults }] = await Promise.all([
+    supabase
+      .from("decisions")
+      .select("*")
+      .eq("source_document_id", id)
+      .order("status", { ascending: true })
+      .order("priority", { ascending: true })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("consultations")
+      .select("id, consultation_date, consultation_type, doctor_name")
+      .eq("family_id", doc.family_id)
+      .eq("status", "upcoming")
+      .gte("consultation_date", today)
+      .order("consultation_date", { ascending: true })
+      .limit(10),
+  ]);
 
   // Si on a un PDF stocké, générer une URL signée (1h) pour le téléchargement
   let downloadUrl: string | null = null;
@@ -120,6 +131,12 @@ export default async function DocumentDetailPage({ params }: PageProps) {
         <DecisionsSection
           decisions={decisions as unknown as DecisionRow[]}
           sourceLabel="par ce document"
+          upcomingConsultations={(upcomingConsults ?? []).map((c) => ({
+            id: c.id,
+            consultation_date: c.consultation_date,
+            consultation_type: c.consultation_type,
+            doctor_name: c.doctor_name,
+          }))}
         />
       )}
 

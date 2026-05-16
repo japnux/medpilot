@@ -21,6 +21,9 @@ const Schema = z.object({
   hospital: z.string().optional(),
   open_points: z.string().optional(),
   treatment_context: z.string().optional(),
+  /** Si fourni, on injecte spécifiquement les décisions awaiting_team
+   * liées à cette consultation (sync M3 ↔ Décisions). */
+  consultation_id: z.string().uuid().optional(),
 });
 
 /**
@@ -59,6 +62,7 @@ export async function POST(request: NextRequest) {
     hospital,
     open_points,
     treatment_context,
+    consultation_id,
   } = parsed.data;
 
   const { data: membership } = await supabase
@@ -153,22 +157,41 @@ export async function POST(request: NextRequest) {
       : "aucune valeur préoccupante récente";
 
   // Décisions du parcours :
-  //  - pending : on les rappelle pour les inscrire à l'ordre du jour
+  //  - awaiting_team liées à CETTE consultation : à aborder en priorité
+  //  - pending (non obsolète) : à inscrire à l'ordre du jour si pertinent
   //  - decided récentes : pour que Claude ne reformule pas des questions déjà tranchées
   const { data: decisions } = await supabase
     .from("decisions")
     .select(
-      "title, question, category, priority, status, chosen_option, rationale, decided_by, decided_at, due_date",
+      "title, question, category, priority, status, chosen_option, rationale, decided_by, decided_at, due_date, source_consultation_id, team_note",
     )
     .eq("family_id", family_id)
-    .in("status", ["pending", "decided"])
+    .in("status", ["pending", "awaiting_team", "decided"])
     .order("status", { ascending: true })
     .order("priority", { ascending: true })
     .order("decided_at", { ascending: false, nullsFirst: false })
-    .limit(20);
+    .limit(25);
 
-  const pendingDec = (decisions ?? []).filter((d) => d.status === "pending");
-  const decidedDec = (decisions ?? []).filter((d) => d.status === "decided");
+  const all = decisions ?? [];
+  const awaitingForThisConsult = consultation_id
+    ? all.filter(
+        (d) =>
+          d.status === "awaiting_team" &&
+          d.source_consultation_id === consultation_id,
+      )
+    : all.filter((d) => d.status === "awaiting_team");
+  const pendingDec = all.filter((d) => d.status === "pending");
+  const decidedDec = all.filter((d) => d.status === "decided");
+
+  const awaitingForConsultStr =
+    awaitingForThisConsult.length > 0
+      ? awaitingForThisConsult
+          .map(
+            (d) =>
+              `- ${d.title}${d.question ? ` — ${d.question}` : ""}${d.team_note ? ` (note interne : ${d.team_note})` : ""}`,
+          )
+          .join("\n")
+      : "aucune";
 
   const pendingDecisionsStr =
     pendingDec.length > 0
@@ -213,6 +236,7 @@ export async function POST(request: NextRequest) {
     care_team: careTeamStr,
     pending_decisions: pendingDecisionsStr,
     decided_decisions: decidedDecisionsStr,
+    awaiting_for_this_consult: awaitingForConsultStr,
     consultation_type,
     doctor_name: doctor_name ?? "non précisé",
     hospital: hospital ?? "non précisé",
