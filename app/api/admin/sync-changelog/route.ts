@@ -111,25 +111,33 @@ export async function POST(request: NextRequest) {
     allEntries.push(...entries);
   }
 
-  // 5. Upsert
-  const rows = toProcess
-    .map((c) => {
-      const entry = allEntries.find((e) => e.commit_sha === c.sha);
-      if (!entry) return null;
-      return {
-        commit_sha: c.sha,
-        commit_date: c.commit.author?.date ?? new Date().toISOString(),
-        commit_message: c.commit.message,
-        commit_author: c.commit.author?.name ?? null,
-        title: entry.title,
-        summary: entry.summary,
-        category: entry.category,
-        user_visible: entry.user_visible,
-        published_at: c.commit.author?.date ?? new Date().toISOString(),
-        generated_model: "claude-haiku-4-5-20251001",
-      };
-    })
-    .filter((r): r is NonNullable<typeof r> => r !== null);
+  // 5. Upsert — on garantit title non-null (fallback sur la 1re ligne du
+  // commit message). Idem pour category : valeur par défaut sûre.
+  const rows = toProcess.map((c) => {
+    const entry = allEntries.find((e) => e.commit_sha === c.sha);
+    const fallbackTitle = c.commit.message.split("\n")[0].trim().slice(0, 100)
+      || c.sha.slice(0, 8);
+    const rawTitle = entry?.title?.trim();
+    const title = rawTitle && rawTitle.length > 0 ? rawTitle : fallbackTitle;
+    const category =
+      entry?.category &&
+      ["feature", "improvement", "fix", "internal"].includes(entry.category)
+        ? entry.category
+        : "improvement";
+    return {
+      commit_sha: c.sha,
+      commit_date: c.commit.author?.date ?? new Date().toISOString(),
+      commit_message: c.commit.message,
+      commit_author: c.commit.author?.name ?? null,
+      title,
+      summary: entry?.summary ?? null,
+      category,
+      // Par défaut visible — sauf si Haiku a explicitement dit false
+      user_visible: entry?.user_visible === false ? false : true,
+      published_at: c.commit.author?.date ?? new Date().toISOString(),
+      generated_model: "claude-haiku-4-5-20251001",
+    };
+  });
 
   if (rows.length > 0) {
     const { error } = await svc
