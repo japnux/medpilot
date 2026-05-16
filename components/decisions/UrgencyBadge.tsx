@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDateFr } from "@/lib/dates";
-import { urgencyLevel, urgencyMeta } from "@/lib/decisions-scoring";
+import { urgencyLevel, urgencyMeta } from "@/lib/decisions-urgency";
 
 /**
  * Pill d'urgence pour une échéance de décision.

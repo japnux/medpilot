@@ -17,7 +17,6 @@ import {
   FileText,
   GitBranch,
   Mailbox,
-  Pin,
   Stethoscope,
   Telescope,
   Users,
@@ -139,15 +138,6 @@ export default function DecisionsListClient({
     // pending
     return decisions.filter((d) => d.status === "pending");
   }, [decisions, filter]);
-
-  async function togglePin(d: DecisionRow) {
-    const supabase = createClient();
-    await supabase
-      .from("decisions")
-      .update({ is_pinned: !d.is_pinned })
-      .eq("id", d.id);
-    router.refresh();
-  }
 
   async function batchArchiveObsoletes() {
     const candidates = decisions.filter(
@@ -278,7 +268,6 @@ export default function DecisionsListClient({
                 decision={d}
                 sources={sources}
                 onActer={() => setActive(d)}
-                onTogglePin={() => togglePin(d)}
               />
             ))}
           </ul>
@@ -346,12 +335,10 @@ function DecisionRowCard({
   decision: d,
   sources,
   onActer,
-  onTogglePin,
 }: {
   decision: DecisionRow;
   sources: SourceMap;
   onActer: () => void;
-  onTogglePin: () => void;
 }) {
   const meta = getCategoryMeta(d.category);
   const Icon = meta.icon;
@@ -436,11 +423,6 @@ function DecisionRowCard({
                 <AlertTriangle className="w-3 h-3" /> Possiblement caduque
               </span>
             )}
-            {d.is_pinned && (
-              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-purple-600">
-                <Pin className="w-3 h-3 fill-current" /> Épinglée
-              </span>
-            )}
           </div>
 
           <h3 className="text-sm font-medium text-ink">{d.title}</h3>
@@ -521,20 +503,6 @@ function DecisionRowCard({
           >
             {isPending || hasObsFlag ? "Acter" : "Modifier"}
           </button>
-          {!isObsolete && (
-            <button
-              type="button"
-              onClick={onTogglePin}
-              title={d.is_pinned ? "Désépingler" : "Épingler dans le Top 3"}
-              className={`p-1 rounded-md hover:bg-surface-card ${
-                d.is_pinned ? "text-purple-600" : "text-muted"
-              }`}
-            >
-              <Pin
-                className={`w-3.5 h-3.5 ${d.is_pinned ? "fill-current" : ""}`}
-              />
-            </button>
-          )}
         </div>
       </div>
     </li>

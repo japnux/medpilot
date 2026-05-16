@@ -49,7 +49,6 @@ export default async function DecisionsPage() {
       .from("decisions")
       .select("*")
       .eq("family_id", membership.family_id)
-      .order("is_pinned", { ascending: false })
       .order("status", { ascending: true })
       .order("priority", { ascending: true })
       .order("due_date", { ascending: true, nullsFirst: false })
