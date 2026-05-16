@@ -3,8 +3,11 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AnalysisTabs from "@/components/analyzer/AnalysisTabs";
 import DecisionsSection from "@/components/decisions/DecisionsSection";
+import PrescriptionsSection from "@/components/medications/PrescriptionsSection";
 import type { DocumentAnalysisResult } from "@/lib/prompts";
 import type { DecisionRow } from "@/lib/decisions";
+import type { Medication } from "@/lib/medications-helpers";
+import type { CareTeamMember } from "@/lib/care-team";
 import { formatDateFr, formatDateShort } from "@/lib/dates";
 import { ArrowLeft, FileText, Download, User, GitBranch } from "lucide-react";
 
@@ -40,7 +43,12 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   const analysis = doc.analysis_summary as unknown as DocumentAnalysisResult | null;
 
   const today = new Date().toISOString().slice(0, 10);
-  const [{ data: decisions }, { data: upcomingConsults }] = await Promise.all([
+  const [
+    { data: decisions },
+    { data: upcomingConsults },
+    { data: existingMedications },
+    { data: cancerProfile },
+  ] = await Promise.all([
     supabase
       .from("decisions")
       .select("*")
@@ -56,7 +64,21 @@ export default async function DocumentDetailPage({ params }: PageProps) {
       .gte("consultation_date", today)
       .order("consultation_date", { ascending: true })
       .limit(10),
+    supabase
+      .from("medications")
+      .select("*")
+      .eq("family_id", doc.family_id)
+      .order("status", { ascending: true })
+      .order("name", { ascending: true }),
+    supabase
+      .from("cancer_profiles")
+      .select("care_team")
+      .eq("family_id", doc.family_id)
+      .maybeSingle(),
   ]);
+
+  const careTeam = (cancerProfile?.care_team as unknown as CareTeamMember[]) ?? [];
+  const prescriptions = analysis?.prescriptions ?? [];
 
   // Si on a un PDF stocké, générer une URL signée (1h) pour le téléchargement
   let downloadUrl: string | null = null;
@@ -171,6 +193,15 @@ export default async function DocumentDetailPage({ params }: PageProps) {
             consultation_type: c.consultation_type,
             doctor_name: c.doctor_name,
           }))}
+        />
+      )}
+
+      {prescriptions.length > 0 && (
+        <PrescriptionsSection
+          prescriptions={prescriptions}
+          existingMedications={(existingMedications ?? []) as Medication[]}
+          careTeam={careTeam}
+          documentDoctor={doc.doctor_name}
         />
       )}
 

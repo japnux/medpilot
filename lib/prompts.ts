@@ -155,10 +155,27 @@ Tu produis UNIQUEMENT ce JSON (pas de texte avant ou après) :
     }
   ],
   "action_required": true,
-  "action_details": "si action_required true : décrire l'action urgente"
+  "action_details": "si action_required true : décrire l'action urgente",
+  "prescriptions": [
+    {
+      "name": "nom de la molécule (DCI) — ex: Hydrocortisone, Sertraline, Paracétamol",
+      "brand_name": "marque commerciale si visible (ex: Zoloft) ou null",
+      "active_ingredient": "DCI si différente du name (ex: pour Doliprane → Paracétamol) ou null",
+      "dosage": "dosage unitaire (ex: 10 mg, 50 mg) ou null",
+      "form": "forme galénique (comprimé, gélule, sachet, …) ou null",
+      "posology": "posologie complète en texte libre, comme prescrite, en incluant TOUTES les étapes d'un schéma dégressif",
+      "route": "oral|im|iv|sc|topical|inhaled|sublingual|other",
+      "indication": "raison clinique si mentionnée ou null",
+      "started_at": "YYYY-MM-DD (date de l'ordonnance si non précisée) ou null",
+      "ended_at": "YYYY-MM-DD si traitement à durée limitée, sinon null",
+      "status": "active|planned|stopped|paused"
+    }
+  ]
 }
 
-⚠️ "decisions_required" : ne remplis que si le document SOULÈVE EXPLICITEMENT un choix à trancher (inclusion essai, choix traitement, programmer examen optionnel, etc.). Si rien à décider, renvoie [].`;
+⚠️ "decisions_required" : ne remplis que si le document SOULÈVE EXPLICITEMENT un choix à trancher (inclusion essai, choix traitement, programmer examen optionnel, etc.). Si rien à décider, renvoie [].
+
+⚠️ "prescriptions" : ne remplis QUE si le document est une ordonnance OU contient une prescription explicite (nom molécule + posologie). Pour les schémas dégressifs (hydrocortisone, cortancyl, etc.), tu mets le détail complet dans posology en texte libre — ne crée PAS plusieurs entrées. Si pas de prescription explicite, renvoie []. Ne JAMAIS inventer une posologie : si le document est ambigu, ne renvoie pas la ligne.`;
 
 // -------------------------------------------------------------------
 // Module 3 — Préparation de consultation (Haiku 4.5)
@@ -289,6 +306,49 @@ export interface DocumentAnalysisResult {
   }>;
   action_required: boolean;
   action_details: string | null;
+  /**
+   * Prescriptions extraites d'une ordonnance (rempli uniquement si
+   * document_type === "ordonnance" ou si le doc contient une prescription
+   * explicite). Si rien, renvoyer [].
+   */
+  prescriptions?: Array<{
+    /** Nom de la molécule ou DCI (ex: "Hydrocortisone", "Sertraline"). */
+    name: string;
+    /** Marque commerciale si visible (ex: "Zoloft"). */
+    brand_name?: string | null;
+    /** DCI si différente du `name` (ex: pour Doliprane → "Paracétamol"). */
+    active_ingredient?: string | null;
+    /** Dosage unitaire (ex: "10 mg", "50 mg"). */
+    dosage?: string | null;
+    /** Forme galénique (ex: "comprimé", "gélule", "sachet"). */
+    form?: string | null;
+    /**
+     * Posologie complète en texte libre, comme prescrite (ex: "3 cp matin + 2 cp midi + 1 cp soir pendant 1 semaine puis 50 mg/j…").
+     * Pour un schéma dégressif, inclure toutes les étapes ici.
+     */
+    posology: string;
+    /** Voie d'administration. */
+    route?:
+      | "oral"
+      | "im"
+      | "iv"
+      | "sc"
+      | "topical"
+      | "inhaled"
+      | "sublingual"
+      | "other";
+    /** Pourquoi (ex: "substitution surrénalienne", "anxiété", "douleur"). */
+    indication?: string | null;
+    /** Date de début (YYYY-MM-DD) — date de l'ordonnance si non précisée. */
+    started_at?: string | null;
+    /** Date de fin (YYYY-MM-DD) si traitement à durée limitée. */
+    ended_at?: string | null;
+    /**
+     * `active` si en cours, `planned` si à débuter plus tard,
+     * `stopped` si explicitement arrêté par cette ordonnance.
+     */
+    status?: "active" | "stopped" | "paused" | "planned";
+  }>;
 }
 
 export interface ConsultationPrepResult {

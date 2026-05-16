@@ -29,8 +29,29 @@ interface Props {
   defaultStatus?: MedicationStatus;
   /** Équipe médicale du patient (pour suggérer le prescripteur). */
   careTeam?: CareTeamMember[];
+  /**
+   * Valeurs de pré-remplissage en mode création (ignoré si `initial` est
+   * fourni). Pratique pour amorcer le form depuis une prescription extraite.
+   */
+  prefill?: MedicationFormPrefill;
   onClose: () => void;
   onSaved: (m: Medication) => void;
+}
+
+export interface MedicationFormPrefill {
+  name?: string;
+  brand_name?: string;
+  active_ingredient?: string;
+  dosage?: string;
+  form?: string;
+  posology?: string;
+  route?: MedicationRoute;
+  indication?: string;
+  prescriber?: string;
+  started_at?: string;
+  ended_at?: string;
+  status?: MedicationStatus;
+  notes?: string;
 }
 
 interface FormState {
@@ -95,12 +116,18 @@ export default function MedicationForm({
   existing,
   defaultStatus = "active",
   careTeam = [],
+  prefill,
   onClose,
   onSaved,
 }: Props) {
-  const [state, setState] = useState<FormState>(() =>
-    toFormState(initial ?? null, defaultStatus),
-  );
+  const [state, setState] = useState<FormState>(() => {
+    const base = toFormState(initial ?? null, defaultStatus);
+    // Le prefill ne s'applique qu'en mode création (pas d'override d'une édition)
+    if (!initial && prefill) {
+      return { ...base, ...prefill };
+    }
+    return base;
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Sections repliables (URLs et effets indésirables) — repliées par défaut sauf

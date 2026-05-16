@@ -9,6 +9,12 @@ interface Props {
   medication: Medication;
   /** Care team déjà chargé pour proposer un datalist des prescripteurs. */
   careTeamNames?: string[];
+  /** Nouvelle posologie pré-remplie (ex: depuis une ordonnance extraite). */
+  prefillNewPosology?: string;
+  /** Nouveau dosage pré-rempli. */
+  prefillNewDosage?: string;
+  /** Prescripteur pré-rempli. */
+  prefillPrescriber?: string;
   onClose: () => void;
 }
 
@@ -20,16 +26,21 @@ interface Props {
 export default function DosageChangeModal({
   medication: m,
   careTeamNames = [],
+  prefillNewPosology,
+  prefillNewDosage,
+  prefillPrescriber,
   onClose,
 }: Props) {
   const router = useRouter();
-  const [newDosage, setNewDosage] = useState(m.dosage ?? "");
-  const [newPosology, setNewPosology] = useState(m.posology ?? "");
+  const [newDosage, setNewDosage] = useState(prefillNewDosage ?? m.dosage ?? "");
+  const [newPosology, setNewPosology] = useState(
+    prefillNewPosology ?? m.posology ?? "",
+  );
   const [changedAt, setChangedAt] = useState(
     new Date().toISOString().slice(0, 10),
   );
   const [reason, setReason] = useState("");
-  const [prescriber, setPrescriber] = useState(m.prescriber ?? "");
+  const [prescriber, setPrescriber] = useState(prefillPrescriber ?? m.prescriber ?? "");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
