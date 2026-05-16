@@ -10,7 +10,6 @@ import {
   type DecisionRow,
   type DecisionStatus,
 } from "@/lib/decisions";
-import { selectTop3 } from "@/lib/decisions-scoring";
 import {
   AlertCircle,
   AlertTriangle,
@@ -19,7 +18,6 @@ import {
   GitBranch,
   Mailbox,
   Pin,
-  Sparkles,
   Stethoscope,
   Telescope,
   Users,
@@ -80,8 +78,6 @@ export default function DecisionsListClient({
   const [filter, setFilter] = useState<Filter>("urgent");
   const [active, setActive] = useState<DecisionRow | null>(null);
   const router = useRouter();
-
-  const top3 = useMemo(() => selectTop3(decisions), [decisions]);
 
   const counts = useMemo(() => {
     const c = {
@@ -238,50 +234,6 @@ export default function DecisionsListClient({
           }
         />
       </div>
-
-      {/* Top 3 banner */}
-      {top3.length > 0 && (
-        <section className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-purple-600" />
-            <h2 className="text-sm font-medium text-ink">
-              Top {top3.length} à traiter
-            </h2>
-          </div>
-          <ol className="space-y-1.5">
-            {top3.map((d, i) => (
-              <li
-                key={d.id}
-                className="flex items-start gap-2 text-sm"
-              >
-                <span className="shrink-0 w-5 h-5 rounded-full bg-purple-600 text-canvas text-[10px] font-medium flex items-center justify-center mt-0.5">
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => setActive(d)}
-                    className="text-left hover:underline"
-                  >
-                    <span className="font-medium text-ink">{d.title}</span>
-                  </button>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px] uppercase tracking-wider text-muted">
-                      {getCategoryMeta(d.category).label}
-                    </span>
-                    <UrgencyBadge dueDate={d.due_date} />
-                    {d.priority === "high" && (
-                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-error/10 text-error">
-                        Prioritaire
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
 
       {/* Tabs */}
       <nav className="flex gap-1 border-b border-hairline overflow-x-auto -mb-px">
