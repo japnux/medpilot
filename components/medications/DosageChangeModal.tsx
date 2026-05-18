@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import type { Medication } from "@/lib/medications-helpers";
+import {
+  isRealDosageChange,
+  isRealPosologyChange,
+} from "@/lib/medication-dosage-helpers";
 
 interface Props {
   medication: Medication;
@@ -50,7 +54,19 @@ export default function DosageChangeModal({
       setError("Renseigne la nouvelle dose.");
       return;
     }
-    if (newDosage.trim() === (m.dosage ?? "").trim() && newPosology.trim() === m.posology.trim()) {
+    // Guard partagé avec le serveur (normalisation espaces). On autorise si
+    // soit la dose, soit la posologie a changé : si seule la posologie change,
+    // le serveur met à jour la row sans créer d'entrée historique (cohérent
+    // avec l'idée que « Historique des doses » = uniquement les vraies dose).
+    const dosageChanged = isRealDosageChange({
+      previousDosage: m.dosage,
+      newDosage,
+    });
+    const posologyChanged = isRealPosologyChange({
+      previousPosology: m.posology,
+      newPosology,
+    });
+    if (!dosageChanged && !posologyChanged) {
       setError("Aucun changement détecté par rapport à la dose actuelle.");
       return;
     }
@@ -75,6 +91,12 @@ export default function DosageChangeModal({
       const j = await res.json();
       if (!res.ok && res.status !== 207) {
         throw new Error(j.error ?? "Erreur");
+      }
+      // Le serveur a son propre garde no-op : si on tombe ici avec skipped,
+      // on ferme silencieusement plutôt que d'afficher une erreur.
+      if (j?.skipped) {
+        onClose();
+        return;
       }
       router.refresh();
       onClose();

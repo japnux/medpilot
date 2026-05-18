@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import {
+  isRealDosageChange,
+  isRealPosologyChange,
+} from "@/lib/medication-dosage-helpers";
 
 export const runtime = "nodejs";
 
@@ -67,6 +71,41 @@ export async function POST(
     );
 
   const changedAt = data.changed_at ?? new Date().toISOString().slice(0, 10);
+
+  // Filet de sécurité : si la DOSE n'a pas changé, pas d'entrée historique
+  // (l'« Historique des doses » ne journalise que les vrais ajustements de
+  // dose). Si en revanche la posologie a changé, on met quand même à jour la
+  // row courante pour refléter le nouveau texte.
+  const dosageChanged = isRealDosageChange({
+    previousDosage: med.dosage,
+    newDosage: data.new_dosage,
+  });
+  if (!dosageChanged) {
+    const posologyChanged = isRealPosologyChange({
+      previousPosology: med.posology,
+      newPosology: data.new_posology ?? null,
+    });
+    if (posologyChanged && data.new_posology) {
+      const { error: upErr } = await supabase
+        .from("medications")
+        .update({ posology: data.new_posology })
+        .eq("id", med.id);
+      if (upErr) {
+        return NextResponse.json({ error: upErr.message }, { status: 500 });
+      }
+      return NextResponse.json({
+        ok: true,
+        skipped: true,
+        posology_updated: true,
+        reason: "Dose inchangée — seule la posologie a été mise à jour",
+      });
+    }
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: "Aucun changement détecté par rapport à la dose actuelle",
+    });
+  }
 
   // 2. INSERT historique
   const { data: change, error: insErr } = await supabase
