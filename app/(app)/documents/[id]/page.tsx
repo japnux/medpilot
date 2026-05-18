@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AnalysisTabs from "@/components/analyzer/AnalysisTabs";
+import ReanalyzeButton from "@/components/analyzer/ReanalyzeButton";
 import DecisionsSection from "@/components/decisions/DecisionsSection";
 import PrescriptionsSection from "@/components/medications/PrescriptionsSection";
 import type { DocumentAnalysisResult } from "@/lib/prompts";
@@ -148,17 +149,22 @@ export default async function DocumentDetailPage({ params }: PageProps) {
               )}
             </div>
           </div>
-          {downloadUrl && (
-            <a
-              href={downloadUrl}
-              className="btn-outline text-xs h-9 px-4 self-start shrink-0"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Télécharger le PDF
-            </a>
-          )}
+          <div className="flex items-start gap-2 self-start shrink-0">
+            {doc.storage_path && (
+              <ReanalyzeButton documentId={doc.id} />
+            )}
+            {downloadUrl && (
+              <a
+                href={downloadUrl}
+                className="btn-outline text-xs h-9 px-4"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Télécharger le PDF
+              </a>
+            )}
+          </div>
         </div>
 
         {!downloadUrl && doc.storage_path && (
