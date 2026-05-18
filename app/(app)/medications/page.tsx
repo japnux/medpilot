@@ -45,24 +45,38 @@ export default async function MedicationsPage() {
 
   // Cas schedule : on identifie les médocs actifs dont la max(end_date) du
   // schedule est passée, sans ended_at fixé.
-  const { data: scheduleEnds } = await supabase
+  //
+  // ⚠️ Garde-fou critique : si UN palier du schedule a end_date=null, c'est
+  // un signal explicite « palier de maintien à vie / schedule ouvert ».
+  // Dans ce cas, on NE DOIT JAMAIS auto-stopper le médoc (ex: hydrocortisone
+  // post-surrénalectomie, levothyrox, anti-épileptiques substitutifs).
+  // Ne mieux vaut pas stopper qu'arrêter à tort un traitement d'urgence vitale.
+  const { data: allSteps } = await supabase
     .from("medication_schedule_steps")
-    .select("medication_id, end_date, medications!inner(family_id, status, ended_at)")
+    .select(
+      "medication_id, end_date, medications!inner(family_id, status, ended_at)",
+    )
     .eq("medications.family_id", familyId)
     .eq("medications.status", "active")
-    .is("medications.ended_at", null)
-    .not("end_date", "is", null);
+    .is("medications.ended_at", null);
 
-  if (scheduleEnds && scheduleEnds.length > 0) {
-    const lastStepByMed = new Map<string, string>();
-    for (const s of scheduleEnds) {
-      const prev = lastStepByMed.get(s.medication_id);
+  if (allSteps && allSteps.length > 0) {
+    // Pour chaque médoc : a-t-il un palier "ouvert" (end_date=null) ?
+    // Si oui, on l'EXCLUT de l'auto-stop. Sinon on calcule max(end_date).
+    const hasOpenStep = new Set<string>();
+    const lastEndByMed = new Map<string, string>();
+    for (const s of allSteps) {
+      if (s.end_date === null) {
+        hasOpenStep.add(s.medication_id);
+        continue;
+      }
+      const prev = lastEndByMed.get(s.medication_id);
       if (!prev || s.end_date > prev) {
-        lastStepByMed.set(s.medication_id, s.end_date);
+        lastEndByMed.set(s.medication_id, s.end_date);
       }
     }
-    const expired = [...lastStepByMed.entries()]
-      .filter(([, end]) => end < today)
+    const expired = [...lastEndByMed.entries()]
+      .filter(([id, end]) => !hasOpenStep.has(id) && end < today)
       .map(([id, end]) => ({ id, end }));
     if (expired.length > 0) {
       for (const { id, end } of expired) {
