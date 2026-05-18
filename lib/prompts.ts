@@ -419,6 +419,8 @@ export interface ConsultationPrepResult {
     question: string;
     priority: "high" | "normal";
     context: string;
+    /** Réponse notée inline pendant le RDV (optionnel, ajouté en cours de visite). */
+    answer?: string;
   }>;
   documents_to_bring: string[];
   decisions_to_make: string[];

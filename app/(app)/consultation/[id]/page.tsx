@@ -69,10 +69,6 @@ export default async function ConsultationDetailPage({ params }: PageProps) {
           prepared_questions:
             (consultation.prepared_questions as unknown as ConsultationPrepResult) ??
             null,
-          decisions_made:
-            (consultation.decisions_made as unknown as string[]) ?? null,
-          followup_actions:
-            (consultation.followup_actions as unknown as string[]) ?? null,
         }}
         decisionCounts={
           decisions
