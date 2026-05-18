@@ -1,0 +1,389 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Sparkles,
+} from "lucide-react";
+
+interface KbItem {
+  id: string;
+  cancer_type: string;
+  cancer_type_label: string | null;
+  status: string;
+}
+
+interface DocItem {
+  id: string;
+  title: string;
+  document_type: string;
+  document_date: string | null;
+  family_id: string;
+}
+
+interface WatchItem {
+  id: string;
+  family_id: string;
+  generated_at: string;
+}
+
+type ItemStatus = "pending" | "running" | "done" | "error";
+
+interface Tracked {
+  kind: "knowledge" | "document" | "watch";
+  key: string; // unique pour ce render (cancer_type | doc.id | family_id)
+  label: string;
+  sub?: string;
+  estCostEur: number;
+  status: ItemStatus;
+  error?: string;
+  durationMs?: number;
+}
+
+interface Props {
+  knowledgeBases: KbItem[];
+  documents: DocItem[];
+  watchFindings: WatchItem[];
+}
+
+// Coût estimé en € (au taux 1.05€/$1)
+const COST = {
+  knowledge: 0.15, // Opus + web_search
+  document: 0.05, // Opus PDF
+  watch: 0.75, // Opus + web_search large
+};
+
+export default function RegenClient({
+  knowledgeBases,
+  documents,
+  watchFindings,
+}: Props) {
+  const router = useRouter();
+
+  // 1 entrée par ressource à regen. On dédoublonne les veilles par family_id
+  // (on ne regen qu'une fois par famille, pas par finding historique).
+  const initialItems: Tracked[] = [
+    ...knowledgeBases.map<Tracked>((k) => ({
+      kind: "knowledge",
+      key: k.cancer_type,
+      label: k.cancer_type_label ?? k.cancer_type,
+      sub: `Knowledge base · ${k.cancer_type}`,
+      estCostEur: COST.knowledge,
+      status: "pending",
+    })),
+    ...documents.map<Tracked>((d) => ({
+      kind: "document",
+      key: d.id,
+      label: d.title,
+      sub: `${d.document_type}${d.document_date ? ` · ${d.document_date}` : ""}`,
+      estCostEur: COST.document,
+      status: "pending",
+    })),
+    ...uniqByFamily(watchFindings).map<Tracked>((w) => ({
+      kind: "watch",
+      key: w.family_id,
+      label: "Veille proactive",
+      sub: `Famille ${w.family_id.slice(0, 8)}…`,
+      estCostEur: COST.watch,
+      status: "pending",
+    })),
+  ];
+
+  const [items, setItems] = useState<Tracked[]>(initialItems);
+  const [running, setRunning] = useState(false);
+  const [cursor, setCursor] = useState<number | null>(null);
+
+  const totalCost = items.reduce((s, i) => s + i.estCostEur, 0);
+  const doneCount = items.filter((i) => i.status === "done").length;
+  const errorCount = items.filter((i) => i.status === "error").length;
+
+  async function runAll() {
+    if (
+      !confirm(
+        `Régénérer ${items.length} ressources via Claude ?\n\nCoût estimé : ~${totalCost.toFixed(2)} €\n\nDurée approximative : ${Math.ceil(items.length * 1)} minutes.\n\nL'opération est séquentielle (pas de parallélisme côté Anthropic). Tu peux fermer cette page, mais les regen lancées termineront seules côté serveur.`,
+      )
+    ) {
+      return;
+    }
+    setRunning(true);
+    for (let i = 0; i < items.length; i++) {
+      setCursor(i);
+      setItems((prev) =>
+        prev.map((it, idx) => (idx === i ? { ...it, status: "running" } : it)),
+      );
+      const item = items[i];
+      try {
+        const t0 = Date.now();
+        const body =
+          item.kind === "knowledge"
+            ? { kind: "knowledge", cancer_type: item.key }
+            : item.kind === "document"
+              ? { kind: "document", id: item.key }
+              : { kind: "watch", family_id: item.key };
+        const res = await fetch("/api/admin/regen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.error ?? "Erreur inconnue");
+        }
+        setItems((prev) =>
+          prev.map((it, idx) =>
+            idx === i
+              ? {
+                  ...it,
+                  status: "done",
+                  durationMs: Date.now() - t0,
+                }
+              : it,
+          ),
+        );
+      } catch (e) {
+        setItems((prev) =>
+          prev.map((it, idx) =>
+            idx === i
+              ? {
+                  ...it,
+                  status: "error",
+                  error: e instanceof Error ? e.message : String(e),
+                }
+              : it,
+          ),
+        );
+      }
+    }
+    setCursor(null);
+    setRunning(false);
+    router.refresh();
+  }
+
+  async function retry(i: number) {
+    setItems((prev) =>
+      prev.map((it, idx) =>
+        idx === i ? { ...it, status: "running", error: undefined } : it,
+      ),
+    );
+    const item = items[i];
+    try {
+      const t0 = Date.now();
+      const body =
+        item.kind === "knowledge"
+          ? { kind: "knowledge", cancer_type: item.key }
+          : item.kind === "document"
+            ? { kind: "document", id: item.key }
+            : { kind: "watch", family_id: item.key };
+      const res = await fetch("/api/admin/regen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Erreur");
+      setItems((prev) =>
+        prev.map((it, idx) =>
+          idx === i
+            ? { ...it, status: "done", durationMs: Date.now() - t0 }
+            : it,
+        ),
+      );
+    } catch (e) {
+      setItems((prev) =>
+        prev.map((it, idx) =>
+          idx === i
+            ? {
+                ...it,
+                status: "error",
+                error: e instanceof Error ? e.message : String(e),
+              }
+            : it,
+        ),
+      );
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl font-semibold text-ink">Tout régénérer</h1>
+          <p className="text-sm text-muted mt-1">
+            Re-passe à Claude tout le contenu existant (KB, documents, veilles)
+            avec les prompts à jour — utile après une évolution majeure
+            (ex: ajout du mode Apaisé).
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label="À regénérer" value={items.length.toString()} />
+        <Stat label="Coût estimé" value={`~${totalCost.toFixed(2)} €`} />
+        <Stat label="Terminés" value={`${doneCount}/${items.length}`} color="emerald" />
+        <Stat
+          label="Erreurs"
+          value={errorCount.toString()}
+          color={errorCount > 0 ? "red" : "gray"}
+        />
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={runAll}
+          disabled={running || items.length === 0}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-ink text-canvas text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+        >
+          <Sparkles className="w-4 h-4" />
+          {running
+            ? `Régénération en cours… (${doneCount + errorCount}/${items.length})`
+            : "Lancer la régénération complète"}
+        </button>
+      </div>
+
+      <div className="bg-canvas-soft border border-hairline rounded-md overflow-hidden">
+        {items.length === 0 ? (
+          <p className="px-4 py-3 text-sm text-muted">
+            Rien à régénérer pour l&apos;instant.
+          </p>
+        ) : (
+          <ul className="divide-y divide-hairline">
+            {items.map((it, idx) => (
+              <li key={`${it.kind}:${it.key}`} className="px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <StatusIcon
+                    status={it.status}
+                    isCursor={cursor === idx}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-ink">
+                        {it.label}
+                      </span>
+                      <KindBadge kind={it.kind} />
+                    </div>
+                    {it.sub && (
+                      <p className="text-xs text-muted mt-0.5">{it.sub}</p>
+                    )}
+                    {it.error && (
+                      <p className="text-xs text-red-600 mt-1">
+                        ⚠️ {it.error}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right text-xs shrink-0">
+                    {it.durationMs ? (
+                      <span className="text-muted tabular-nums">
+                        {(it.durationMs / 1000).toFixed(0)}s
+                      </span>
+                    ) : (
+                      <span className="text-muted">
+                        ~{it.estCostEur.toFixed(2)} €
+                      </span>
+                    )}
+                    {it.status === "error" && (
+                      <button
+                        type="button"
+                        onClick={() => retry(idx)}
+                        disabled={running}
+                        className="block mt-1 text-xs text-blue-600 hover:underline"
+                      >
+                        Relancer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function uniqByFamily(rows: WatchItem[]): WatchItem[] {
+  const seen = new Set<string>();
+  const out: WatchItem[] = [];
+  for (const r of rows) {
+    if (seen.has(r.family_id)) continue;
+    seen.add(r.family_id);
+    out.push(r);
+  }
+  return out;
+}
+
+function Stat({
+  label,
+  value,
+  color = "ink",
+}: {
+  label: string;
+  value: string;
+  color?: "ink" | "emerald" | "red" | "gray";
+}) {
+  const COLORS = {
+    ink: "text-ink",
+    emerald: "text-emerald-700",
+    red: "text-red-700",
+    gray: "text-muted",
+  };
+  return (
+    <div className="bg-canvas-soft border border-hairline rounded-md px-4 py-3">
+      <div className="text-xs text-muted uppercase tracking-wider mb-1">
+        {label}
+      </div>
+      <div className={`text-xl font-semibold tabular-nums ${COLORS[color]}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function KindBadge({ kind }: { kind: Tracked["kind"] }) {
+  const COLORS = {
+    knowledge: "bg-purple-100 text-purple-700",
+    document: "bg-blue-100 text-blue-700",
+    watch: "bg-cyan-100 text-cyan-700",
+  };
+  const LABEL = {
+    knowledge: "KB",
+    document: "Document",
+    watch: "Veille",
+  };
+  return (
+    <span
+      className={`text-[10px] uppercase tracking-wider rounded px-1.5 py-0.5 font-medium ${COLORS[kind]}`}
+    >
+      {LABEL[kind]}
+    </span>
+  );
+}
+
+function StatusIcon({
+  status,
+  isCursor,
+}: {
+  status: ItemStatus;
+  isCursor: boolean;
+}) {
+  if (status === "done")
+    return <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />;
+  if (status === "error")
+    return <XCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />;
+  if (status === "running")
+    return (
+      <Loader2 className="w-5 h-5 text-blue-600 animate-spin shrink-0 mt-0.5" />
+    );
+  return (
+    <Clock
+      className={`w-5 h-5 shrink-0 mt-0.5 ${
+        isCursor ? "text-blue-600" : "text-muted-soft"
+      }`}
+    />
+  );
+}
