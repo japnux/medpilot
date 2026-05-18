@@ -79,14 +79,83 @@ export default function PrescriptionsSection({
     prefill: MedicationFormPrefill;
     schedule: ExtractedScheduleStep[];
   } | null>(null);
-  // Modal changement de dose
+  // Modal changement de dose (pour les prescriptions SANS schedule structuré)
   const [updatingDose, setUpdatingDose] = useState<{
     medication: Medication;
     newPosology: string;
     newDosage?: string;
   } | null>(null);
+  // Replacement de plan posologique (pour les prescriptions AVEC schedule)
+  const [replacingPlan, setReplacingPlan] = useState<{
+    medicationId: string;
+    medicationName: string;
+    steps: ExtractedScheduleStep[];
+    posology: string;
+    dosage: string | null;
+  } | null>(null);
+  // État busy par row pour le bouton "Remplacer le plan"
+  const [planBusy, setPlanBusy] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
   // Schedule replié / déplié par prescription
   const [openSchedule, setOpenSchedule] = useState<Set<number>>(new Set());
+
+  /**
+   * Remplace le plan posologique d'un médicament existant par celui extrait
+   * de l'ordonnance. Met aussi à jour dosage/posology de la fiche pour
+   * refléter le palier en cours (calculé côté UI via getCurrentStep).
+   */
+  async function replacePlan() {
+    if (!replacingPlan) return;
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      // 1. PUT du schedule complet
+      const stepsPayload = replacingPlan.steps.map((s) => ({
+        step_order: s.step_order,
+        start_date: s.start_date,
+        end_date: s.end_date,
+        dosage: s.dosage,
+        posology: s.posology,
+        notes: s.notes ?? null,
+      }));
+      const resSched = await fetch(
+        `/api/medications/${replacingPlan.medicationId}/schedule`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ steps: stepsPayload }),
+        },
+      );
+      if (!resSched.ok) {
+        const j = await resSched.json().catch(() => ({}));
+        throw new Error(j?.error ?? "Erreur PUT /schedule");
+      }
+      // 2. Update la fiche médicament avec la posologie/dosage "globale" comme
+      // backup (au cas où on est hors période de schedule, ou pour l'IA qui
+      // lit posology). On y met le texte complet de la prescription.
+      const resMed = await fetch(
+        `/api/medications/${replacingPlan.medicationId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            posology: replacingPlan.posology,
+            dosage: replacingPlan.dosage,
+          }),
+        },
+      );
+      if (!resMed.ok) {
+        const j = await resMed.json().catch(() => ({}));
+        throw new Error(j?.error ?? "Erreur PATCH /medications");
+      }
+      setReplacingPlan(null);
+      router.refresh();
+    } catch (e) {
+      setPlanError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPlanBusy(false);
+    }
+  }
 
   function toggleSchedule(idx: number) {
     setOpenSchedule((prev) => {
@@ -211,20 +280,39 @@ export default function PrescriptionsSection({
 
                   <div className="shrink-0 flex flex-col gap-1.5">
                     {match ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setUpdatingDose({
-                            medication: match,
-                            newPosology: p.posology,
-                            newDosage: p.dosage ?? undefined,
-                          })
-                        }
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-ink text-canvas hover:opacity-90 whitespace-nowrap"
-                      >
-                        <TrendingUp className="w-3.5 h-3.5" />
-                        Mettre à jour la dose
-                      </button>
+                      hasSchedule ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReplacingPlan({
+                              medicationId: match.id,
+                              medicationName: match.name,
+                              steps: p.schedule!,
+                              posology: p.posology,
+                              dosage: p.dosage ?? null,
+                            })
+                          }
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-fuchsia-600 text-white hover:opacity-90 whitespace-nowrap"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          Remplacer le plan ({p.schedule!.length} paliers)
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setUpdatingDose({
+                              medication: match,
+                              newPosology: p.posology,
+                              newDosage: p.dosage ?? undefined,
+                            })
+                          }
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-ink text-canvas hover:opacity-90 whitespace-nowrap"
+                        >
+                          <TrendingUp className="w-3.5 h-3.5" />
+                          Mettre à jour la dose
+                        </button>
+                      )
                     ) : (
                       <button
                         type="button"
@@ -284,6 +372,84 @@ export default function PrescriptionsSection({
             router.refresh();
           }}
         />
+      )}
+
+      {/* Modal confirmation remplacement de plan posologique */}
+      {replacingPlan && (
+        <>
+          <button
+            type="button"
+            aria-label="Fermer"
+            onClick={() => !planBusy && setReplacingPlan(null)}
+            className="fixed inset-0 z-40 bg-ink/40"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-canvas rounded-xl shadow-2xl border border-hairline"
+          >
+            <header className="px-5 py-4 border-b border-hairline">
+              <h3 className="text-base font-medium text-ink">
+                Remplacer le plan posologique
+              </h3>
+              <p className="text-xs text-muted mt-1">
+                {replacingPlan.medicationName}
+              </p>
+            </header>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm text-body">
+                Cette action va remplacer{" "}
+                <strong>l&apos;intégralité du plan posologique</strong> existant
+                par les <strong>{replacingPlan.steps.length} paliers</strong>{" "}
+                extraits de cette ordonnance.
+              </p>
+              <ol className="space-y-1 text-xs">
+                {replacingPlan.steps.map((s) => (
+                  <li
+                    key={s.step_order}
+                    className="flex gap-2 items-baseline"
+                  >
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-fuchsia-100 text-fuchsia-700 text-[10px] font-medium shrink-0">
+                      {s.step_order}
+                    </span>
+                    <span className="text-ink font-medium">
+                      {s.dosage ?? s.posology}
+                    </span>
+                    <span className="text-muted">
+                      {s.start_date}
+                      {s.end_date ? ` → ${s.end_date}` : " (maintenance)"}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
+                ⚠️ Si un plan existait déjà sur ce médicament, il sera supprimé.
+                L&apos;historique des changements de dose ponctuels reste intact.
+              </p>
+              {planError && (
+                <p className="text-xs text-red-600">{planError}</p>
+              )}
+            </div>
+            <footer className="px-5 py-3 border-t border-hairline flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setReplacingPlan(null)}
+                disabled={planBusy}
+                className="px-3 py-1.5 text-sm rounded-md text-muted hover:text-ink"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={replacePlan}
+                disabled={planBusy}
+                className="px-3 py-1.5 text-sm rounded-md bg-fuchsia-600 text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {planBusy ? "Mise à jour…" : "Confirmer le remplacement"}
+              </button>
+            </footer>
+          </div>
+        </>
       )}
     </>
   );
