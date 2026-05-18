@@ -13,6 +13,7 @@ import MedicationForm, { type CareTeamMember } from "./MedicationForm";
 import EmptyMedicationsState from "./EmptyMedicationsState";
 import DosageChangeModal from "./DosageChangeModal";
 import type { DosageChangeRow } from "@/lib/medication-dosage-helpers";
+import type { ScheduleStep } from "@/lib/medication-schedule";
 
 type Filter = "active" | "all" | "stopped" | "planned" | "paused";
 
@@ -30,6 +31,8 @@ interface Props {
   patientFirstName: string | null;
   careTeam: CareTeamMember[];
   dosageChangesByMed: Record<string, DosageChangeRow[]>;
+  /** Paliers du plan posologique par medication_id. */
+  scheduleByMed?: Record<string, ScheduleStep[]>;
 }
 
 export default function MedicationsClient({
@@ -38,6 +41,7 @@ export default function MedicationsClient({
   patientFirstName,
   careTeam,
   dosageChangesByMed,
+  scheduleByMed = {},
 }: Props) {
   const { medications, setMedications } = useMedications(
     familyId,
@@ -145,6 +149,7 @@ export default function MedicationsClient({
           <MedicationsList
             medications={filtered}
             dosageChangesByMed={dosageChangesByMed}
+            scheduleByMed={scheduleByMed}
             onEdit={(m) => setEditing(m)}
             onStop={(m) => setEditing({ ...m, status: "stopped" })}
             onDelete={handleDelete}

@@ -34,6 +34,18 @@ interface Props {
    * fourni). Pratique pour amorcer le form depuis une prescription extraite.
    */
   prefill?: MedicationFormPrefill;
+  /**
+   * Plan posologique structuré à pousser à la création (passé à l'API).
+   * Ignoré en mode édition.
+   */
+  prefillSchedule?: Array<{
+    step_order: number;
+    start_date: string;
+    end_date: string | null;
+    dosage: string | null;
+    posology: string;
+    notes?: string | null;
+  }>;
   onClose: () => void;
   onSaved: (m: Medication) => void;
 }
@@ -117,6 +129,7 @@ export default function MedicationForm({
   defaultStatus = "active",
   careTeam = [],
   prefill,
+  prefillSchedule,
   onClose,
   onSaved,
 }: Props) {
@@ -251,10 +264,16 @@ export default function MedicationForm({
         ? `/api/medications/${initial.id}`
         : "/api/medications";
       const method = initial ? "PATCH" : "POST";
+      // En création : on inclut le schedule pré-rempli si fourni.
+      // En édition : pas de schedule via ce form (utiliser PUT /schedule).
+      const bodyPayload =
+        !initial && prefillSchedule && prefillSchedule.length > 0
+          ? { ...payload, schedule: prefillSchedule }
+          : payload;
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(bodyPayload),
       });
       const json = (await res.json()) as {
         ok?: boolean;

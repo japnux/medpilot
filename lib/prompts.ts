@@ -168,14 +168,35 @@ Tu produis UNIQUEMENT ce JSON (pas de texte avant ou après) :
       "indication": "raison clinique si mentionnée ou null",
       "started_at": "YYYY-MM-DD (date de l'ordonnance si non précisée) ou null",
       "ended_at": "YYYY-MM-DD si traitement à durée limitée, sinon null",
-      "status": "active|planned|stopped|paused"
+      "status": "active|planned|stopped|paused",
+      "schedule": [
+        {
+          "step_order": 1,
+          "start_date": "YYYY-MM-DD",
+          "end_date": "YYYY-MM-DD ou null si palier de maintenance",
+          "dosage": "dose totale du palier (ex: 60 mg/j) ou null",
+          "posology": "détail du palier (ex: 3 cp matin + 2 cp midi + 1 cp soir)",
+          "notes": "contexte éventuel ou null"
+        }
+      ]
     }
   ]
 }
 
 ⚠️ "decisions_required" : ne remplis que si le document SOULÈVE EXPLICITEMENT un choix à trancher (inclusion essai, choix traitement, programmer examen optionnel, etc.). Si rien à décider, renvoie [].
 
-⚠️ "prescriptions" : ne remplis QUE si le document est une ordonnance OU contient une prescription explicite (nom molécule + posologie). Pour les schémas dégressifs (hydrocortisone, cortancyl, etc.), tu mets le détail complet dans posology en texte libre — ne crée PAS plusieurs entrées. Si pas de prescription explicite, renvoie []. Ne JAMAIS inventer une posologie : si le document est ambigu, ne renvoie pas la ligne.`;
+⚠️ "prescriptions" : ne remplis QUE si le document est une ordonnance OU contient une prescription explicite (nom molécule + posologie). Si pas de prescription explicite, renvoie []. Ne JAMAIS inventer une posologie : si le document est ambigu, ne renvoie pas la ligne.
+
+⚠️ "prescriptions[].schedule" : SI la prescription comporte un schéma multi-paliers (dégressif type corticoïdes, alternance, paliers datés), tu DOIS décomposer en N paliers explicites avec dates calculées :
+- step_order = 1, 2, 3, ... dans l'ordre chronologique
+- start_date du palier 1 = started_at (ou date du document si non précisée)
+- end_date du palier N = start_date du palier N+1 - 1 jour
+- Calcule les durées : "pendant 1 semaine" = 7 jours, "pendant 1 mois" = 28 jours par défaut
+- Si le dernier palier est de maintenance ("ensuite continuer X mg/j"), mets end_date = null
+- Le posology de chaque palier doit être PRÉCIS et NUMÉRIQUE (ex: "3 cp matin + 2 cp midi + 1 cp soir"), pas un texte vague
+- Le dosage du palier = dose totale calculée si possible (ex: "60 mg/j")
+
+Si dose unique stable (Sertraline 50mg le soir au long cours, Paracétamol à la demande) : NE PAS remplir schedule (renvoie [] ou omet le champ). La fiche posology principale suffit.`;
 
 // -------------------------------------------------------------------
 // Module 3 — Préparation de consultation (Haiku 4.5)
@@ -348,6 +369,21 @@ export interface DocumentAnalysisResult {
      * `stopped` si explicitement arrêté par cette ordonnance.
      */
     status?: "active" | "stopped" | "paused" | "planned";
+    /**
+     * Plan posologique structuré, à remplir UNIQUEMENT si la prescription
+     * comporte plusieurs paliers explicites (schéma dégressif, alternance,
+     * paliers datés). Si dose unique stable : laisser vide.
+     * Chaque palier doit avoir des dates calculées en partant de
+     * `started_at` (ou date du document si non précisée).
+     */
+    schedule?: Array<{
+      step_order: number;
+      start_date: string; // YYYY-MM-DD
+      end_date: string | null; // null = palier de maintenance
+      dosage: string | null; // dose totale ce palier (ex: "60 mg/j")
+      posology: string; // détail (ex: "3 cp matin + 2 cp midi + 1 cp soir")
+      notes?: string | null;
+    }>;
   }>;
 }
 

@@ -30,6 +30,16 @@ const NullableUrl = z
   .nullable()
   .or(z.literal("").transform(() => null));
 
+/** Palier de plan posologique optionnel à créer en même temps. */
+const ScheduleStepSchema = z.object({
+  step_order: z.number().int().min(1),
+  start_date: z.string().date(),
+  end_date: z.string().date().nullable().optional(),
+  dosage: z.string().trim().max(100).nullable().optional(),
+  posology: z.string().trim().min(1).max(2000),
+  notes: z.string().trim().max(500).nullable().optional(),
+});
+
 const CreateSchema = z.object({
   name: z.string().trim().min(1).max(200),
   brand_name: z.string().trim().max(200).optional().nullable(),
@@ -49,6 +59,11 @@ const CreateSchema = z.object({
   vidal_url: NullableUrl,
   ansm_url: NullableUrl,
   known_side_effects: z.string().trim().max(3000).optional().nullable(),
+  /**
+   * Plan posologique structuré optionnel. Si fourni, on crée tous les paliers
+   * en base après l'insert du médicament parent.
+   */
+  schedule: z.array(ScheduleStepSchema).optional(),
 });
 
 /**
@@ -121,10 +136,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const { schedule, ...medFields } = parsed.data;
+
   const { data, error } = await supabase
     .from("medications")
     .insert({
-      ...parsed.data,
+      ...medFields,
       family_id: membership.family_id,
       created_by: user.id,
     })
@@ -133,6 +150,33 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Insère les paliers du plan posologique si fourni.
+  // Pas de transaction native, mais la cascade RLS via medication_id assure
+  // l'isolation, et la suppression du médicament cascade les steps si rollback manuel.
+  if (schedule && schedule.length > 0) {
+    const rows = schedule.map((s) => ({
+      medication_id: data.id,
+      step_order: s.step_order,
+      start_date: s.start_date,
+      end_date: s.end_date ?? null,
+      dosage: s.dosage ?? null,
+      posology: s.posology,
+      notes: s.notes ?? null,
+    }));
+    const { error: schedErr } = await supabase
+      .from("medication_schedule_steps")
+      .insert(rows);
+    if (schedErr) {
+      // Best-effort : on retourne le médicament créé même si le schedule
+      // a échoué, avec un warning. L'utilisateur peut le réajouter manuellement.
+      return NextResponse.json({
+        ok: true,
+        medication: data,
+        schedule_error: schedErr.message,
+      });
+    }
   }
 
   return NextResponse.json({ ok: true, medication: data });

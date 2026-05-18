@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pill, Plus, TrendingUp, CheckCircle2 } from "lucide-react";
+import {
+  Pill,
+  Plus,
+  TrendingUp,
+  CheckCircle2,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import MedicationForm, {
   type CareTeamMember,
   type MedicationFormPrefill,
@@ -10,6 +18,17 @@ import MedicationForm, {
 import DosageChangeModal from "./DosageChangeModal";
 import type { Medication } from "@/lib/medications-helpers";
 import { findMatchingMedication } from "@/lib/medication-match";
+import { formatDateShort } from "@/lib/dates";
+
+/** Un palier de schéma posologique extrait de l'ordonnance. */
+export interface ExtractedScheduleStep {
+  step_order: number;
+  start_date: string;
+  end_date: string | null;
+  dosage: string | null;
+  posology: string;
+  notes?: string | null;
+}
 
 /**
  * Une prescription extraite d'une ordonnance via Claude.
@@ -27,6 +46,7 @@ export interface ExtractedPrescription {
   started_at?: string | null;
   ended_at?: string | null;
   status?: string | null;
+  schedule?: ExtractedScheduleStep[];
 }
 
 interface Props {
@@ -55,13 +75,27 @@ export default function PrescriptionsSection({
   const router = useRouter();
 
   // Modal édition / création (mode pré-rempli)
-  const [creating, setCreating] = useState<MedicationFormPrefill | null>(null);
+  const [creating, setCreating] = useState<{
+    prefill: MedicationFormPrefill;
+    schedule: ExtractedScheduleStep[];
+  } | null>(null);
   // Modal changement de dose
   const [updatingDose, setUpdatingDose] = useState<{
     medication: Medication;
     newPosology: string;
     newDosage?: string;
   } | null>(null);
+  // Schedule replié / déplié par prescription
+  const [openSchedule, setOpenSchedule] = useState<Set<number>>(new Set());
+
+  function toggleSchedule(idx: number) {
+    setOpenSchedule((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }
 
   if (!prescriptions || prescriptions.length === 0) return null;
 
@@ -86,6 +120,8 @@ export default function PrescriptionsSection({
           {prescriptions.map((p, idx) => {
             const match = findMatchingMedication(p, existingMedications);
             const matchActive = match && match.status === "active";
+            const hasSchedule = Array.isArray(p.schedule) && p.schedule.length > 0;
+            const isScheduleOpen = openSchedule.has(idx);
             return (
               <li key={idx} className="px-5 py-4">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -106,9 +142,61 @@ export default function PrescriptionsSection({
                     <p className="text-sm text-body">{p.posology}</p>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
                       {p.indication && <span>💡 {p.indication}</span>}
-                      {p.started_at && <span>Début : {p.started_at}</span>}
-                      {p.ended_at && <span>Fin : {p.ended_at}</span>}
+                      {p.started_at && (
+                        <span>Début : {formatDateShort(p.started_at)}</span>
+                      )}
+                      {p.ended_at && (
+                        <span>Fin : {formatDateShort(p.ended_at)}</span>
+                      )}
                     </div>
+
+                    {hasSchedule && (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleSchedule(idx)}
+                          className="inline-flex items-center gap-1.5 text-xs text-fuchsia-700 hover:text-fuchsia-900 font-medium"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          Plan posologique en {p.schedule!.length} paliers
+                          {isScheduleOpen ? (
+                            <ChevronUp className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                        </button>
+                        {isScheduleOpen && (
+                          <ol className="mt-2 space-y-1.5 border-l-2 border-fuchsia-200 pl-3">
+                            {p.schedule!.map((step) => (
+                              <li
+                                key={step.step_order}
+                                className="text-xs text-body"
+                              >
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-fuchsia-100 text-fuchsia-700 text-[10px] font-medium">
+                                    {step.step_order}
+                                  </span>
+                                  <span className="font-medium text-ink">
+                                    {step.dosage ?? step.posology}
+                                  </span>
+                                  <span className="text-muted">
+                                    · {formatDateShort(step.start_date)}
+                                    {step.end_date
+                                      ? ` → ${formatDateShort(step.end_date)}`
+                                      : " (maintenance)"}
+                                  </span>
+                                </span>
+                                {step.dosage && (
+                                  <p className="mt-0.5 ml-7 text-muted">
+                                    {step.posology}
+                                  </p>
+                                )}
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </div>
+                    )}
 
                     {match && (
                       <p className="text-xs text-emerald-700 flex items-center gap-1 mt-1">
@@ -141,12 +229,17 @@ export default function PrescriptionsSection({
                       <button
                         type="button"
                         onClick={() =>
-                          setCreating(prescriptionToPrefill(p, documentDoctor))
+                          setCreating({
+                            prefill: prescriptionToPrefill(p, documentDoctor),
+                            schedule: p.schedule ?? [],
+                          })
                         }
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-ink text-canvas hover:opacity-90 whitespace-nowrap"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        Ajouter aux médicaments
+                        {hasSchedule
+                          ? `Ajouter (${p.schedule!.length} paliers)`
+                          : "Ajouter aux médicaments"}
                       </button>
                     )}
                   </div>
@@ -168,8 +261,9 @@ export default function PrescriptionsSection({
         <MedicationForm
           existing={existingMedications}
           careTeam={careTeam}
-          defaultStatus={(creating.status ?? "active") as never}
-          prefill={creating}
+          defaultStatus={(creating.prefill.status ?? "active") as never}
+          prefill={creating.prefill}
+          prefillSchedule={creating.schedule}
           onClose={() => setCreating(null)}
           onSaved={() => {
             setCreating(null);

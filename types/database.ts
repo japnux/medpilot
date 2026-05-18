@@ -531,6 +531,32 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["api_usage_logs"]["Insert"]>;
         Relationships: [];
       };
+      medication_schedule_steps: {
+        Row: {
+          id: string;
+          medication_id: string;
+          step_order: number;
+          start_date: string;
+          end_date: string | null;
+          dosage: string | null;
+          posology: string;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          medication_id: string;
+          step_order: number;
+          start_date: string;
+          end_date?: string | null;
+          dosage?: string | null;
+          posology: string;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["medication_schedule_steps"]["Insert"]>;
+        Relationships: [];
+      };
       medications: {
         Row: {
           id: string;
