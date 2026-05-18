@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Circle,
   GitBranch,
+  FileSignature,
   type LucideIcon,
 } from "lucide-react";
 
@@ -40,6 +41,7 @@ export const EVENT_TYPES: Record<EventType, EventTypeMeta> = {
     icon: SlidersHorizontal,
   },
   treatment_end: { label: "Fin traitement", color: "#64748b", icon: CheckCircle },
+  prescription: { label: "Ordonnance", color: "#d946ef", icon: FileSignature },
   rcp: { label: "RCP", color: "#a855f7", icon: Users },
   clinical_trial: { label: "Essai clinique", color: "#ec4899", icon: FlaskConical },
   hospitalization: { label: "Hospitalisation", color: "#dc2626", icon: Building2 },

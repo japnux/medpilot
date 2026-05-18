@@ -572,6 +572,7 @@ function mapDocTypeToEvent(docType: string):
   | "biology"
   | "imaging"
   | "consultation"
+  | "prescription"
   | "rcp"
   | "other" {
   switch (docType) {
@@ -583,6 +584,8 @@ function mapDocTypeToEvent(docType: string):
       return "imaging";
     case "compte_rendu_op":
       return "consultation";
+    case "ordonnance":
+      return "prescription";
     case "rcp":
       return "rcp";
     default:

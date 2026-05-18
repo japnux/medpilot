@@ -73,6 +73,7 @@ export type EventType =
   | "treatment_start"
   | "treatment_adjustment"
   | "treatment_end"
+  | "prescription"
   | "rcp"
   | "clinical_trial"
   | "hospitalization"
