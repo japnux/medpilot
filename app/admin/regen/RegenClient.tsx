@@ -16,6 +16,7 @@ interface KbItem {
   cancer_type: string;
   cancer_type_label: string | null;
   status: string;
+  generated_at: string | null;
 }
 
 interface DocItem {
@@ -24,6 +25,8 @@ interface DocItem {
   document_type: string;
   document_date: string | null;
   family_id: string;
+  created_at: string;
+  analysis_updated_at: string | null;
 }
 
 interface WatchItem {
@@ -39,6 +42,8 @@ interface Tracked {
   key: string; // unique pour ce render (cancer_type | doc.id | family_id)
   label: string;
   sub?: string;
+  /** Date ISO de la dernière régénération côté DB (null = jamais regen). */
+  lastRegenAt: string | null;
   estCostEur: number;
   status: ItemStatus;
   error?: string;
@@ -73,6 +78,7 @@ export default function RegenClient({
       key: k.cancer_type,
       label: k.cancer_type_label ?? k.cancer_type,
       sub: `Knowledge base · ${k.cancer_type}`,
+      lastRegenAt: k.generated_at,
       estCostEur: COST.knowledge,
       status: "pending",
     })),
@@ -81,6 +87,7 @@ export default function RegenClient({
       key: d.id,
       label: d.title,
       sub: `${d.document_type}${d.document_date ? ` · ${d.document_date}` : ""}`,
+      lastRegenAt: d.analysis_updated_at ?? d.created_at,
       estCostEur: COST.document,
       status: "pending",
     })),
@@ -89,6 +96,7 @@ export default function RegenClient({
       key: w.family_id,
       label: "Veille proactive",
       sub: `Famille ${w.family_id.slice(0, 8)}…`,
+      lastRegenAt: w.generated_at,
       estCostEur: COST.watch,
       status: "pending",
     })),
@@ -141,6 +149,7 @@ export default function RegenClient({
                   ...it,
                   status: "done",
                   durationMs: Date.now() - t0,
+                  lastRegenAt: new Date().toISOString(),
                 }
               : it,
           ),
@@ -194,7 +203,12 @@ export default function RegenClient({
       setItems((prev) =>
         prev.map((it, idx) =>
           idx === i
-            ? { ...it, status: "done", durationMs: Date.now() - t0 }
+            ? {
+                ...it,
+                status: "done",
+                durationMs: Date.now() - t0,
+                lastRegenAt: new Date().toISOString(),
+              }
             : it,
         ),
       );
@@ -272,9 +286,16 @@ export default function RegenClient({
                       </span>
                       <KindBadge kind={it.kind} />
                     </div>
-                    {it.sub && (
-                      <p className="text-xs text-muted mt-0.5">{it.sub}</p>
-                    )}
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted mt-0.5">
+                      {it.sub && <span>{it.sub}</span>}
+                      {it.lastRegenAt && (
+                        <span
+                          title={new Date(it.lastRegenAt).toLocaleString("fr-FR")}
+                        >
+                          🔄 Dernière regen : {formatRelative(it.lastRegenAt)}
+                        </span>
+                      )}
+                    </div>
                     {it.error && (
                       <p className="text-xs text-red-600 mt-1">
                         ⚠️ {it.error}
@@ -341,6 +362,28 @@ function uniqByFamily(rows: WatchItem[]): WatchItem[] {
     out.push(r);
   }
   return out;
+}
+
+/**
+ * Date relative concise en français : "il y a 5 min", "il y a 3h",
+ * "il y a 2 j", "il y a 1 mois", etc. Pas de librairie pour rester léger.
+ */
+function formatRelative(iso: string): string {
+  const t = new Date(iso).getTime();
+  const now = Date.now();
+  const diff = Math.max(0, now - t);
+  const s = Math.round(diff / 1000);
+  if (s < 60) return "à l'instant";
+  const m = Math.round(s / 60);
+  if (m < 60) return `il y a ${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `il y a ${h} h`;
+  const d = Math.round(h / 24);
+  if (d < 31) return `il y a ${d} j`;
+  const mo = Math.round(d / 30);
+  if (mo < 12) return `il y a ${mo} mois`;
+  const y = Math.round(mo / 12);
+  return `il y a ${y} an${y > 1 ? "s" : ""}`;
 }
 
 function Stat({

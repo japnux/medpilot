@@ -21,10 +21,12 @@ export default async function AdminRegenPage() {
     svc
       .from("medical_documents")
       .select(
-        "id, family_id, title, document_type, document_date, storage_path, created_at",
+        "id, family_id, title, document_type, document_date, storage_path, created_at, analysis_updated_at",
       )
       .not("storage_path", "is", null)
       .order("created_at", { ascending: false }),
+    // Pour les veilles : on garde le finding le plus récent par famille
+    // (regen = nouvelle ligne, jamais d'update sur place).
     svc
       .from("watch_findings")
       .select("id, family_id, generated_at")

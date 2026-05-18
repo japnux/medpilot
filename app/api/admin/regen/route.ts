@@ -320,7 +320,10 @@ async function regenDocument(
   const safe = JSON.parse(JSON.stringify(result.json));
   const { error: upErr } = await svc
     .from("medical_documents")
-    .update({ analysis_summary: safe })
+    .update({
+      analysis_summary: safe,
+      analysis_updated_at: new Date().toISOString(),
+    })
     .eq("id", docId);
   if (upErr) throw upErr;
 
