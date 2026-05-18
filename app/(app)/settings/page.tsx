@@ -19,7 +19,7 @@ export default async function SettingsPage() {
 
   const { data: membership } = await supabase
     .from("family_members")
-    .select("family_id, role, tone_preference")
+    .select("family_id, role")
     .eq("user_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -47,7 +47,6 @@ export default async function SettingsPage() {
       members={members ?? []}
       currentUserId={user.id}
       careTeam={(profile?.care_team as unknown as CareTeamMember[]) ?? []}
-      currentTone={membership.tone_preference ?? "balanced"}
     />
   );
 }

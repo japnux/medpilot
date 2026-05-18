@@ -8,6 +8,7 @@ import {
   XCircle,
   Clock,
   Sparkles,
+  Play,
 } from "lucide-react";
 
 interface KbItem {
@@ -163,13 +164,18 @@ export default function RegenClient({
     router.refresh();
   }
 
-  async function retry(i: number) {
+  /**
+   * Lance la regen d'une seule entité. Utilisé par le bouton "Relancer"
+   * sur erreur ET par le bouton "Régénérer" en ligne sur chaque ressource.
+   */
+  async function runOne(i: number) {
+    const item = items[i];
+    if (item.status === "running") return;
     setItems((prev) =>
       prev.map((it, idx) =>
         idx === i ? { ...it, status: "running", error: undefined } : it,
       ),
     );
-    const item = items[i];
     try {
       const t0 = Date.now();
       const body =
@@ -275,7 +281,7 @@ export default function RegenClient({
                       </p>
                     )}
                   </div>
-                  <div className="text-right text-xs shrink-0">
+                  <div className="text-right text-xs shrink-0 flex flex-col items-end gap-1">
                     {it.durationMs ? (
                       <span className="text-muted tabular-nums">
                         {(it.durationMs / 1000).toFixed(0)}s
@@ -285,14 +291,34 @@ export default function RegenClient({
                         ~{it.estCostEur.toFixed(2)} €
                       </span>
                     )}
-                    {it.status === "error" && (
+                    {/* Bouton unitaire : visible pour pending/done/error
+                        (pas pendant running, pas pendant la boucle globale). */}
+                    {it.status !== "running" && (
                       <button
                         type="button"
-                        onClick={() => retry(idx)}
+                        onClick={() => runOne(idx)}
                         disabled={running}
-                        className="block mt-1 text-xs text-blue-600 hover:underline"
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs border transition-colors disabled:opacity-40 ${
+                          it.status === "error"
+                            ? "border-red-200 text-red-700 bg-red-50 hover:bg-red-100"
+                            : it.status === "done"
+                              ? "border-hairline text-muted hover:text-ink hover:bg-canvas"
+                              : "border-hairline text-body hover:text-ink hover:bg-canvas"
+                        }`}
+                        title={
+                          it.status === "error"
+                            ? "Relancer cette entité"
+                            : it.status === "done"
+                              ? "Régénérer à nouveau cette entité"
+                              : "Régénérer uniquement cette entité"
+                        }
                       >
-                        Relancer
+                        <Play className="w-3 h-3" />
+                        {it.status === "error"
+                          ? "Relancer"
+                          : it.status === "done"
+                            ? "Refaire"
+                            : "Régénérer"}
                       </button>
                     )}
                   </div>

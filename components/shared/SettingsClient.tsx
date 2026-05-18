@@ -7,7 +7,6 @@ import { CANCER_PROFILE_OPTIONS } from "@/lib/cancer-profiles";
 import type { Database } from "@/types/database";
 import { UserPlus, Trash2 } from "lucide-react";
 import { dedupeCareTeam, type CareTeamMember as CareTeamMemberShared } from "@/lib/care-team";
-import { TONE_META, type TonePreference } from "@/lib/tone";
 
 type CancerProfile = Database["public"]["Tables"]["cancer_profiles"]["Row"];
 
@@ -32,10 +31,9 @@ interface Props {
   members: Member[];
   currentUserId: string;
   careTeam: CareTeamMember[];
-  currentTone: TonePreference;
 }
 
-type Tab = "profile" | "team" | "members" | "tone";
+type Tab = "profile" | "team" | "members";
 
 export default function SettingsClient({
   familyId,
@@ -44,32 +42,9 @@ export default function SettingsClient({
   members,
   currentUserId,
   careTeam: initialTeam,
-  currentTone,
 }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("profile");
-  const [tone, setTone] = useState<TonePreference>(currentTone);
-  const [toneSaving, setToneSaving] = useState(false);
-
-  async function saveTone(next: TonePreference) {
-    setTone(next);
-    setToneSaving(true);
-    try {
-      const res = await fetch("/api/me/tone", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tone_preference: next }),
-      });
-      if (!res.ok) throw new Error("Échec mise à jour tonalité");
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur");
-      // Rollback affichage
-      setTone(currentTone);
-    } finally {
-      setToneSaving(false);
-    }
-  }
 
   // Profile fields
   const [cancerLabel, setCancerLabel] = useState(profile?.cancer_label ?? "");
@@ -199,7 +174,7 @@ export default function SettingsClient({
       <h1 className="text-2xl font-semibold text-ink">Paramètres</h1>
 
       <nav className="inline-flex flex-wrap bg-canvas-soft border border-hairline rounded-lg p-1 gap-1">
-        {(["profile", "team", "members", "tone"] as const).map((t) => (
+        {(["profile", "team", "members"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -213,9 +188,7 @@ export default function SettingsClient({
               ? "Profil cancer"
               : t === "team"
                 ? "Équipe médicale"
-                : t === "members"
-                  ? "Membres famille"
-                  : "Tonalité"}
+                : "Membres famille"}
           </button>
         ))}
       </nav>
@@ -453,135 +426,6 @@ export default function SettingsClient({
         </section>
       )}
 
-      {tab === "tone" && (
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-lg font-medium text-ink mb-1">
-              Tonalité de l&apos;app
-            </h2>
-            <p className="text-sm text-muted">
-              Calibre la présentation de l&apos;information selon ce que vous
-              voulez voir. Le contenu médical reste accessible dans tous les
-              modes.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            {(["medical", "balanced", "soft"] as const).map((t) => {
-              const meta = TONE_META[t];
-              const active = tone === t;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => saveTone(t)}
-                  disabled={toneSaving}
-                  className={`w-full text-left rounded-lg border p-4 transition-colors ${
-                    active
-                      ? "border-ink bg-canvas-soft"
-                      : "border-hairline bg-canvas hover:bg-canvas-soft"
-                  } ${toneSaving ? "opacity-50" : ""}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-xl shrink-0 mt-0.5" aria-hidden>
-                      {meta.emoji}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <h3 className="text-base font-medium text-ink">
-                          {meta.label}
-                        </h3>
-                        <span className="text-xs text-muted">{meta.tagline}</span>
-                      </div>
-                      <p className="text-sm text-body mt-1">
-                        {meta.description}
-                      </p>
-                    </div>
-                    {active && (
-                      <span className="text-xs text-ink font-medium shrink-0 mt-0.5">
-                        ✓ Actif
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Preview de copy */}
-          <div className="rounded-lg border border-hairline bg-canvas-soft p-4">
-            <p className="text-xs uppercase tracking-wider text-muted mb-2 font-medium">
-              Exemple — même donnée vue selon le mode actif
-            </p>
-            <TonePreview tone={tone} />
-          </div>
-
-          {/* Disclaimer */}
-          <p className="text-xs text-muted italic border-l-2 border-hairline pl-3">
-            Aucune information médicale n&apos;est masquée par le mode Apaisé.
-            Les alertes critiques (symptômes urgents, décisions à dates,
-            posologies) restent visibles dans tous les modes. Vous pouvez
-            changer d&apos;avis à tout moment.
-          </p>
-        </section>
-      )}
-    </div>
-  );
-}
-
-/**
- * Aperçu interactif : montre comment la même information apparaît selon
- * le mode choisi. Sert à expliquer le choix avant qu'il s'applique partout.
- */
-function TonePreview({ tone }: { tone: TonePreference }) {
-  if (tone === "medical") {
-    return (
-      <div className="space-y-2 text-sm">
-        <p className="text-ink">
-          <strong>Survie à 5 ans :</strong> 60 %. Taux de récidive locale : 35 %.
-        </p>
-        <p className="text-body">
-          Cancer à haut risque, pronostic défavorable en cas de Ki-67 &gt; 30 %.
-          Effets indésirables du mitotane : nausées, asthénie, troubles
-          cognitifs.
-        </p>
-      </div>
-    );
-  }
-  if (tone === "balanced") {
-    return (
-      <div className="space-y-2 text-sm">
-        <p className="text-ink">
-          <strong>Données de survie :</strong> 6 patients sur 10 sont en vie 5
-          ans après le diagnostic.
-        </p>
-        <p className="text-body">
-          Cancer à surveiller de près. 65 % des patients restent en rémission
-          locale. Le mitotane peut entraîner des effets à surveiller (nausées,
-          fatigue, troubles cognitifs).
-        </p>
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-2 text-sm">
-      <p className="text-ink">
-        Les données récentes montrent que <strong>la majorité des patients</strong>{" "}
-        sont en vie 5 ans après le diagnostic.
-      </p>
-      <p className="text-body">
-        Votre situation demande une surveillance rapprochée — c&apos;est
-        précisément pour ça que MedPilot vous accompagne. Les effets possibles
-        à surveiller du mitotane (fatigue, troubles digestifs) sont à signaler
-        à votre équipe si vous les ressentez.
-      </p>
-      <details className="text-xs text-muted">
-        <summary className="cursor-pointer">Voir les détails statistiques</summary>
-        <p className="mt-2">
-          Survie à 5 ans : 60 %. Taux de réapparition locale : 35 %. Ces
-          chiffres sont une moyenne — chaque situation est unique.
-        </p>
-      </details>
     </div>
   );
 }

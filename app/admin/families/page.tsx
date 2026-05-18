@@ -1,4 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import UserToneSelector from "./UserToneSelector";
+import type { TonePreference } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +9,7 @@ interface MemberRow {
   role: string | null;
   display_name: string | null;
   relation: string | null;
+  tone_preference: TonePreference | null;
 }
 
 interface FamilyRow {
@@ -42,7 +45,9 @@ export default async function AdminFamiliesPage() {
         ),
       svc
         .from("family_members")
-        .select("family_id, user_id, role, display_name, relation"),
+        .select(
+          "family_id, user_id, role, display_name, relation, tone_preference",
+        ),
       svc
         .from("biology_records")
         .select("family_id", { count: "exact", head: false }),
@@ -149,7 +154,7 @@ export default async function AdminFamiliesPage() {
                 <p className="text-xs text-muted uppercase tracking-wider mb-1">
                   Membres ({fams.length})
                 </p>
-                <ul className="text-sm space-y-0.5">
+                <ul className="text-sm space-y-1.5">
                   {fams.map((m) => (
                     <li
                       key={m.user_id}
@@ -161,10 +166,14 @@ export default async function AdminFamiliesPage() {
                           <span className="text-muted ml-2">({m.relation})</span>
                         )}
                       </span>
-                      <span className="text-xs text-muted">
+                      <span className="text-xs text-muted shrink-0">
                         {m.role ?? "—"}
                       </span>
-                      <span className="text-xs text-muted font-mono w-48 text-right truncate">
+                      <UserToneSelector
+                        userId={m.user_id}
+                        initialTone={m.tone_preference ?? "balanced"}
+                      />
+                      <span className="text-xs text-muted font-mono w-48 text-right truncate hidden md:inline">
                         {usersById[m.user_id]?.email ?? m.user_id.slice(0, 8)}
                       </span>
                     </li>
