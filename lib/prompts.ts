@@ -228,9 +228,11 @@ export const CONSULTATION_PREP_PROMPT = `Tu prépares une consultation médicale
 # Profil patient
 - Diagnostic : {{diagnosis_date}}
 - Chirurgie : {{surgery_date}} ({{surgery_result}})
-- Traitements actifs (aujourd'hui) : {{active_treatments}}
+- Traitements évoqués au profil (saisie libre, NON vérifiée — peut être historique, planifiée, ou simplement discutée) : {{active_treatments}}
 - Biomarqueurs clés au diagnostic : {{key_biomarkers}}
 - Réseau de référence : {{reference_network}}
+
+⚠️ La VRAIE liste opérationnelle des médicaments est dans le bloc "# Médicaments du patient" plus bas. Un traitement qui figure dans "Traitements évoqués au profil" mais qui n'apparaît PAS sous "## En cours" du bloc Médicaments n'est PAS administré aujourd'hui : il est peut-être planifié, en discussion, suspendu, arrêté, ou simplement pas encore démarré. Dans ce cas, ne traite jamais ce médicament comme acquis ; au contraire, le démarrage/la modalité peut être un point à clarifier en consultation.
 
 # Consultation à préparer
 - Type de consultation : {{consultation_type}}
@@ -271,7 +273,9 @@ SYSTÉMATIQUEMENT par au moins une question dans la sortie.
 
 # Mission
 
-Génère une préparation de RDV utile pour l'accompagnant. Questions précises et directes, classées par thème et priorité. Cite uniquement des médicaments si explicitement présents dans le contexte. Compte tenu du type de consultation ({{consultation_type}}) et du médecin ({{doctor_name}}), priorise les questions qui relèvent de SA spécialité.
+Génère une préparation de RDV utile pour l'accompagnant. Questions précises et directes, classées par thème et priorité. Compte tenu du type de consultation ({{consultation_type}}) et du médecin ({{doctor_name}}), priorise les questions qui relèvent de SA spécialité.
+
+Règle absolue sur les médicaments : NE PARLE D'UN MÉDICAMENT COMME ÉTANT EN COURS QUE S'IL FIGURE SOUS "## En cours" DU BLOC "# Médicaments du patient". Pour les médocs qui sont uniquement dans "Traitements évoqués au profil" ou dans "## Planifiés", formule les questions comme des décisions à prendre / modalités à clarifier (ex: « Quand démarrer X ? », « Sous quel schéma initier Y ? »), JAMAIS comme un traitement déjà en place (ex: PAS de « maintenant que X a commencé » s'il n'est pas dans En cours).
 
 Pour les décisions en attente : transforme-les en questions/points à aborder. Pour les décisions tranchées : ne les reposes PAS, mais tu peux poser des questions de suivi ("comment évolue X depuis qu'on a décidé Y").
 
