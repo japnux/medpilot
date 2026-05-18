@@ -227,7 +227,7 @@ export default function AnalyzerClient({ familyId, history }: Props) {
       // 3. Événement timeline lié
       await supabase.from("timeline_events").insert({
         family_id: familyId,
-        event_type: mapDocTypeToEvent(result.document_type),
+        event_type: mapDocTypeToEvent(result.document_type, result.title),
         event_date: result.document_date ?? new Date().toISOString().slice(0, 10),
         title: result.title,
         summary: result.summary_family,
@@ -567,7 +567,10 @@ function validateDocType(t: string): (typeof ALLOWED_DOC_TYPES)[number] {
     : "autre";
 }
 
-function mapDocTypeToEvent(docType: string):
+function mapDocTypeToEvent(
+  docType: string,
+  title?: string,
+):
   | "anapath"
   | "biology"
   | "imaging"
@@ -588,6 +591,17 @@ function mapDocTypeToEvent(docType: string):
       return "prescription";
     case "rcp":
       return "rcp";
+    case "courrier":
+      // Heuristique : un courrier qui décrit une consultation
+      // (ex: "Consultation d'annonce", "Compte-rendu de consultation")
+      // doit être taggé comme consultation, pas comme "Autre".
+      if (
+        title &&
+        /^(consultation|compte[\s-]rendu de consultation)/i.test(title.trim())
+      ) {
+        return "consultation";
+      }
+      return "other";
     default:
       return "other";
   }
