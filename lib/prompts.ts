@@ -192,9 +192,31 @@ Tu produis UNIQUEMENT ce JSON (pas de texte avant ou après) :
 - start_date du palier 1 = started_at (ou date du document si non précisée)
 - end_date du palier N = start_date du palier N+1 - 1 jour
 - Calcule les durées : "pendant 1 semaine" = 7 jours, "pendant 1 mois" = 28 jours par défaut
-- Si le dernier palier est de maintenance ("ensuite continuer X mg/j"), mets end_date = null
 - Le posology de chaque palier doit être PRÉCIS et NUMÉRIQUE (ex: "3 cp matin + 2 cp midi + 1 cp soir"), pas un texte vague
 - Le dosage du palier = dose totale calculée si possible (ex: "60 mg/j")
+
+⚠️⚠️ RÈGLE CRITIQUE — DOSE DE MAINTIEN (À NE PAS LOUPER) ⚠️⚠️
+Beaucoup d'ordonnances décrivent une DESCENTE de dose vers une DOSE DE MAINTIEN À VIE, pas une cure limitée. Tu DOIS faire la différence :
+
+CAS A — Dose de maintien implicite (CHRONIQUE — dernier palier sans end_date) :
+- Corticoïdes substitutifs après surrénalectomie / insuffisance surrénalienne (hydrocortisone, prednisolone, fludrocortisone) — TOUJOURS chronique, la descente vise une dose de maintien
+- Anti-épileptiques, anti-rejet de greffe, traitements thyroïdiens substitutifs (Levothyrox), traitements de fond cardiologiques (statines, anti-hypertenseurs, anti-coagulants au long cours)
+- Tout médoc précédé de mentions "à vie", "au long cours", "en continu", "traitement de fond", "dose de maintien", "ensuite continuer"
+- Tout médoc dont l'indication est une carence ou une substitution hormonale chronique
+→ Le DERNIER palier du schedule DOIT avoir end_date = null (signal "continuation indéfinie")
+→ La prescription DOIT avoir ended_at = null
+→ Si l'ordonnance dit "puis 30 mg/j" sans préciser de fin, c'est un palier de maintien sans end_date
+
+CAS B — Cure limitée (ended_at fixé) :
+- Antibiotiques, antalgiques cures courtes, anti-émétiques post-chimio, laxatifs pour constipation post-op
+- Toute prescription avec une durée totale EXPLICITE ("pendant 7 jours", "1 mois total", "1 cure de 5 jours")
+→ ended_at = date de fin calculée, dernier palier du schedule a aussi son end_date
+
+CAS C — Traitement à la demande (chronique conditionnel) :
+- "si douleur", "si fièvre", "si nausées", PRN, à la demande
+→ ended_at = null, pas de schedule
+
+En cas de doute entre A et B pour un corticoïde, choisis A. Mieux vaut un médoc qui reste actif à tort qu'un médoc d'urgence vitale (hydrocortisone) marqué comme stoppé alors que le patient continue d'en avoir besoin.
 
 Si dose unique stable (Sertraline 50mg le soir au long cours, Paracétamol à la demande) : NE PAS remplir schedule (renvoie [] ou omet le champ). La fiche posology principale suffit.`;
 

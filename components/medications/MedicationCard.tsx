@@ -12,6 +12,7 @@ import {
   TrendingUp,
   ChevronDown,
   ChevronRight,
+  AlertCircle,
 } from "lucide-react";
 import MedicationStatusBadge from "./MedicationStatusBadge";
 import DosageHistory from "./DosageHistory";
@@ -81,6 +82,13 @@ export default function MedicationCard({
   const displayDosage = currentStep?.dosage ?? m.dosage;
   const displayPosology = currentStep?.posology ?? m.posology;
 
+  // Détection « arrêt bientôt » : un médoc actif dont la fin réelle (ended_at
+  // ou dernière étape du schedule avec end_date != null) tombe dans les 7 j.
+  // Permet d'anticiper : prévoir renouvellement, demander à l'équipe si on
+  // poursuit, etc. Pas affiché si le médoc est déjà stoppé/suspendu.
+  const expiringSoon =
+    m.status === "active" ? getExpiringSoonInfo(m.ended_at, schedule) : null;
+
   return (
     <div className="rounded-lg border border-hairline bg-canvas p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -102,7 +110,22 @@ export default function MedicationCard({
             </p>
           )}
         </div>
-        <MedicationStatusBadge status={m.status} />
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <MedicationStatusBadge status={m.status} />
+          {expiringSoon && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200"
+              title={`Fin prévue le ${formatDateFR(expiringSoon.endDate)}`}
+            >
+              <AlertCircle className="w-3 h-3" />
+              {expiringSoon.days === 0
+                ? "Se termine aujourd'hui"
+                : expiringSoon.days === 1
+                  ? "Se termine demain"
+                  : `Se termine dans ${expiringSoon.days}j`}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Encart plan posologique structuré */}
@@ -464,4 +487,34 @@ function ScheduleTimeline({
       )}
     </div>
   );
+}
+
+/**
+ * Calcule si un médoc actif arrive à terme dans les 7 prochains jours.
+ * Sources possibles, dans l'ordre :
+ *  1. ended_at fixé sur la row medications
+ *  2. end_date du dernier palier du schedule (si != null — ignore les
+ *     paliers de maintien qui ont volontairement end_date = null)
+ *
+ * Retourne { days, endDate } si dans la fenêtre [0, 7], sinon null.
+ * days = nombre de jours entre aujourd'hui et la fin (0 = aujourd'hui).
+ */
+function getExpiringSoonInfo(
+  endedAt: string | null,
+  schedule: ScheduleStep[],
+): { days: number; endDate: string } | null {
+  let endDate: string | null = null;
+  if (endedAt) {
+    endDate = endedAt;
+  } else if (schedule.length > 0) {
+    // Dernier palier dans l'ordre chronologique
+    const last = [...schedule].sort((a, b) => a.step_order - b.step_order).pop();
+    if (last?.end_date) endDate = last.end_date;
+  }
+  if (!endDate) return null;
+  const today = new Date(todayIso());
+  const end = new Date(endDate);
+  const diff = Math.floor((end.getTime() - today.getTime()) / 86_400_000);
+  if (diff < 0 || diff > 7) return null;
+  return { days: diff, endDate };
 }
