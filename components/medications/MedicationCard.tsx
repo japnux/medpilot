@@ -9,10 +9,9 @@ import {
   Trash2,
   Square,
   ExternalLink,
+  TrendingUp,
   ChevronDown,
   ChevronRight,
-  AlertCircle,
-  TrendingUp,
 } from "lucide-react";
 import MedicationStatusBadge from "./MedicationStatusBadge";
 import DosageHistory from "./DosageHistory";
@@ -67,7 +66,6 @@ export default function MedicationCard({
   onChangeDosage,
 }: Props) {
   const [confirming, setConfirming] = useState(false);
-  const [sideOpen, setSideOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const links = getLinks(m);
 
@@ -157,31 +155,6 @@ export default function MedicationCard({
 
       {m.notes && (
         <p className="mt-2 text-xs text-body whitespace-pre-line">{m.notes}</p>
-      )}
-
-      {/* Effets indésirables : section dépliable */}
-      {m.known_side_effects && (
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => setSideOpen((v) => !v)}
-            className="inline-flex items-center gap-1.5 text-xs text-body hover:text-ink"
-            aria-expanded={sideOpen}
-          >
-            {sideOpen ? (
-              <ChevronDown className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5" />
-            )}
-            <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
-            Effets indésirables connus
-          </button>
-          {sideOpen && (
-            <p className="mt-1.5 ml-5 text-xs text-body whitespace-pre-line">
-              {m.known_side_effects}
-            </p>
-          )}
-        </div>
       )}
 
       {/* Historique des doses (replié par défaut) */}
