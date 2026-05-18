@@ -259,9 +259,9 @@ function EventItem({
         {crossCount?.medications && crossCount.medications > 0 ? (
           <CrossBadge
             icon={<Pill className="w-3 h-3" />}
-            label={`${crossCount.medications} médic.`}
+            label={`${crossCount.medications} médicament${crossCount.medications > 1 ? "s" : ""}`}
             tone="indigo"
-            title={`${crossCount.medications} médicament(s) démarré(s) ce jour`}
+            title={`${crossCount.medications} médicament${crossCount.medications > 1 ? "s" : ""} démarré${crossCount.medications > 1 ? "s" : ""} ce jour`}
           />
         ) : null}
         {crossCount?.symptoms && crossCount.symptoms > 0 ? (
