@@ -95,23 +95,76 @@ export async function enrichWithMedications(
   supabase: SupabaseClient<Database>,
   familyId: string,
 ): Promise<string> {
-  const [{ data: meds }, { data: changes }] = await Promise.all([
-    supabase
-      .from("medications")
-      .select("*")
-      .eq("family_id", familyId)
-      .order("status", { ascending: true })
-      .order("started_at", { ascending: false }),
-    // Derniers 6 changements de dose, contexte clinique utile
-    supabase
-      .from("medication_dosage_changes")
-      .select("medication_id, changed_at, previous_dosage, new_dosage, reason, prescriber")
-      .eq("family_id", familyId)
-      .order("changed_at", { ascending: false })
-      .limit(6),
-  ]);
+  const today = new Date().toISOString().slice(0, 10);
+  const [{ data: meds }, { data: changes }, { data: scheduleSteps }] =
+    await Promise.all([
+      supabase
+        .from("medications")
+        .select("*")
+        .eq("family_id", familyId)
+        .order("status", { ascending: true })
+        .order("started_at", { ascending: false }),
+      // Derniers 6 changements de dose, contexte clinique utile
+      supabase
+        .from("medication_dosage_changes")
+        .select(
+          "medication_id, changed_at, previous_dosage, new_dosage, reason, prescriber",
+        )
+        .eq("family_id", familyId)
+        .order("changed_at", { ascending: false })
+        .limit(6),
+      // Paliers de schedule actifs (médocs avec un plan posologique multi-étapes)
+      supabase
+        .from("medication_schedule_steps")
+        .select(
+          "medication_id, step_order, start_date, end_date, dosage, posology, medications!inner(family_id, status)",
+        )
+        .eq("medications.family_id", familyId)
+        .eq("medications.status", "active"),
+    ]);
 
   let block = buildMedicationsContextBlock(meds ?? []);
+
+  // Palier en cours pour chaque médoc actif : on identifie le step dont
+  // [start_date, end_date] contient today (ou end_date=null = palier ouvert).
+  if (scheduleSteps && scheduleSteps.length > 0 && meds && meds.length > 0) {
+    const nameById = new Map(meds.map((m) => [m.id, m.name]));
+    type StepRow = {
+      medication_id: string;
+      step_order: number;
+      start_date: string;
+      end_date: string | null;
+      dosage: string | null;
+      posology: string | null;
+    };
+    const byMed = new Map<string, StepRow[]>();
+    for (const s of scheduleSteps as unknown as StepRow[]) {
+      const arr = byMed.get(s.medication_id) ?? [];
+      arr.push(s);
+      byMed.set(s.medication_id, arr);
+    }
+    const currentLines: string[] = [];
+    for (const [medId, steps] of byMed.entries()) {
+      steps.sort((a, b) => a.step_order - b.step_order);
+      const current = steps.find(
+        (s) =>
+          s.start_date <= today && (s.end_date === null || s.end_date >= today),
+      );
+      if (!current) continue;
+      const name = nameById.get(medId) ?? "Médicament";
+      const total = steps.length;
+      const endLabel = current.end_date
+        ? `jusqu'au ${new Date(current.end_date).toLocaleDateString("fr-FR")}`
+        : "palier de maintien (sans date de fin)";
+      currentLines.push(
+        `- **${name}** : palier ${current.step_order}/${total} en cours · ${current.dosage ?? "?"}${current.posology ? ` (${current.posology})` : ""} · ${endLabel}`,
+      );
+    }
+    if (currentLines.length > 0) {
+      block += `\n\n## Palier posologique en cours\n\n${currentLines.join("\n")}`;
+    }
+  }
+
   if (changes && changes.length > 0 && meds && meds.length > 0) {
     const nameById = new Map(meds.map((m) => [m.id, m.name]));
     block += `\n\n## Derniers ajustements de dose\n\n`;

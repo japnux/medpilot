@@ -28,7 +28,11 @@ export default async function ConsultationDetailPage({ params }: PageProps) {
   if (!consultation) notFound();
 
   const today = new Date().toISOString().slice(0, 10);
-  const [{ data: decisions }, { data: upcomingConsults }] = await Promise.all([
+  const [
+    { data: decisions },
+    { data: upcomingConsults },
+    { data: profile },
+  ] = await Promise.all([
     supabase
       .from("decisions")
       .select("*")
@@ -44,7 +48,18 @@ export default async function ConsultationDetailPage({ params }: PageProps) {
       .gte("consultation_date", today)
       .order("consultation_date", { ascending: true })
       .limit(10),
+    supabase
+      .from("cancer_profiles")
+      .select("care_team")
+      .eq("family_id", consultation.family_id)
+      .maybeSingle(),
   ]);
+
+  const careTeamNames = Array.isArray(profile?.care_team)
+    ? (profile.care_team as Array<{ name?: string }>)
+        .map((m) => m.name)
+        .filter((n): n is string => Boolean(n))
+    : [];
 
   return (
     <div className="space-y-6">
@@ -67,6 +82,7 @@ export default async function ConsultationDetailPage({ params }: PageProps) {
               }
             : undefined
         }
+        careTeamNames={careTeamNames}
       />
       {decisions && decisions.length > 0 && (
         <div id="decisions-section" className="p-6 max-w-3xl mx-auto">

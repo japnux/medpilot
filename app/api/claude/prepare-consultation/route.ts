@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { callClaudeJson } from "@/lib/anthropic";
+import type { ConsultationType } from "@/types/database";
 import { logApiUsage } from "@/lib/usage-tracker";
 import { buildToneInstructions } from "@/lib/tone";
 import { getToneForUser } from "@/lib/tone-server";
@@ -12,6 +13,7 @@ import {
   type ConsultationPrepResult,
 } from "@/lib/prompts";
 import { buildSymptomContext } from "@/lib/symptom-context";
+import { buildWatchPrepContext } from "@/lib/watch-prep-context";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -230,6 +232,9 @@ export async function POST(request: NextRequest) {
   // Symptômes & effets indésirables des 14 derniers jours (top 5 + criticals)
   const symptomsStr = await buildSymptomContext(supabase, family_id, 14);
 
+  // Dernière veille générée : exec summary + top priorities + critical alerts
+  const watchStr = await buildWatchPrepContext(supabase, family_id);
+
   // Contexte d'interpolation enrichi
   const baseCtx = buildPromptContext(profile);
   const ctx = {
@@ -244,6 +249,7 @@ export async function POST(request: NextRequest) {
     decided_decisions: decidedDecisionsStr,
     awaiting_for_this_consult: awaitingForConsultStr,
     recent_symptoms: symptomsStr,
+    watch_context: watchStr,
     consultation_type,
     doctor_name: doctor_name ?? "non précisé",
     hospital: hospital ?? "non précisé",
@@ -274,6 +280,36 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       duration_ms: Date.now() - t0,
     });
+
+    // Si on régénère pour une consultation existante, on persiste
+    // prepared_questions directement (évite un PATCH supplémentaire côté
+    // client) et on met à jour la fiche avec les nouvelles valeurs saisies.
+    if (consultation_id) {
+      const validTypes: ConsultationType[] = [
+        "oncologie",
+        "endocrinologie",
+        "chirurgie",
+        "rcp",
+        "genetique",
+        "radiologie",
+        "soins_support",
+        "autre",
+      ];
+      const safeType = validTypes.includes(consultation_type as ConsultationType)
+        ? (consultation_type as ConsultationType)
+        : null;
+      await supabase
+        .from("consultations")
+        .update({
+          prepared_questions: JSON.parse(JSON.stringify(result.json)),
+          consultation_type: safeType,
+          ...(consultation_date ? { consultation_date } : {}),
+          doctor_name: doctor_name ?? null,
+          hospital: hospital ?? null,
+        })
+        .eq("id", consultation_id);
+    }
+
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erreur Claude";

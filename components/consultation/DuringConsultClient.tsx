@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import type { ConsultationPrepResult } from "@/lib/prompts";
 import { formatDateFr } from "@/lib/dates";
-import { CheckCircle, ArrowLeft, GitBranch } from "lucide-react";
+import { CheckCircle, ArrowLeft, GitBranch, Pencil } from "lucide-react";
 import Link from "next/link";
+import EditConsultationModal from "./EditConsultationModal";
 
 interface Consultation {
   id: string;
@@ -26,11 +27,14 @@ interface Props {
   consultation: Consultation;
   /** Compteur affiché en header : { pending, total } décisions liées. */
   decisionCounts?: { pending: number; total: number };
+  /** Noms du care_team (datalist du modal d'édition). */
+  careTeamNames?: string[];
 }
 
 export default function DuringConsultClient({
   consultation,
   decisionCounts,
+  careTeamNames = [],
 }: Props) {
   const router = useRouter();
   const [notes, setNotes] = useState(consultation.notes_during ?? "");
@@ -42,6 +46,7 @@ export default function DuringConsultClient({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
 
   function addItem(list: string[], setter: (v: string[]) => void) {
     setter([...list, ""]);
@@ -134,15 +139,25 @@ export default function DuringConsultClient({
       </Link>
 
       <header>
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-semibold text-ink">
-            Consultation {consultation.consultation_type}
-          </h1>
-          {completed && (
-            <span className="px-2 py-0.5 rounded text-xs bg-success/10 text-success border border-success/30">
-              Terminée
-            </span>
-          )}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-semibold text-ink">
+              Consultation {consultation.consultation_type}
+            </h1>
+            {completed && (
+              <span className="px-2 py-0.5 rounded text-xs bg-success/10 text-success border border-success/30">
+                Terminée
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-hairline-strong text-body hover:text-ink hover:bg-surface-card"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Modifier
+          </button>
         </div>
         <p className="text-sm text-muted mt-1">
           {formatDateFr(consultation.consultation_date)}
@@ -272,6 +287,21 @@ export default function DuringConsultClient({
           )}
         </div>
       </section>
+
+      {editing && (
+        <EditConsultationModal
+          consultation={{
+            id: consultation.id,
+            family_id: consultation.family_id,
+            consultation_date: consultation.consultation_date,
+            consultation_type: consultation.consultation_type,
+            doctor_name: consultation.doctor_name,
+            hospital: consultation.hospital,
+          }}
+          careTeamNames={careTeamNames}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </div>
   );
 }

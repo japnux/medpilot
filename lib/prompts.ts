@@ -255,6 +255,9 @@ export const CONSULTATION_PREP_PROMPT = `Tu prépares une consultation médicale
 # Équipe médicale connue du patient
 {{care_team}}
 
+# Veille proactive (dernière génération)
+{{watch_context}}
+
 # Décisions explicitement à aborder lors de CE RDV (status=awaiting_team)
 Ces décisions ont été flaggées pour CE rendez-vous précisément. À COUVRIR
 SYSTÉMATIQUEMENT par au moins une question dans la sortie.
