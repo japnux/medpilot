@@ -6,6 +6,8 @@ import { buildWatchSystemPrompt } from "@/lib/watch-prompts";
 import { buildWatchContext } from "@/lib/watch-context";
 import { parseJsonResponse } from "@/lib/anthropic";
 import { logApiUsage } from "@/lib/usage-tracker";
+import { buildToneInstructions } from "@/lib/tone";
+import { getToneForUser } from "@/lib/tone-server";
 
 // La web_search est lente (1-3 min). Limite Vercel : 300s côté Pro.
 export const runtime = "nodejs";
@@ -109,10 +111,12 @@ export async function POST(request: NextRequest) {
   const { buildKnowledgeContextBlock } = await import("@/lib/knowledge-context");
   const { enrichWithMedications } = await import("@/lib/medications-context");
   const medicationsBlock = await enrichWithMedications(supabase, family_id);
+  const tone = await getToneForUser();
   const systemPrompt =
     buildWatchSystemPrompt(ctx) +
     buildKnowledgeContextBlock(kb) +
-    medicationsBlock;
+    medicationsBlock +
+    buildToneInstructions(tone);
 
   // Appel Claude Opus + web_search
   const apiKey = process.env.ANTHROPIC_API_KEY;

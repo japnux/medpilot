@@ -18,6 +18,15 @@ export type Json =
 
 export type Role = "patient" | "accompagnant" | "admin";
 
+/**
+ * Tonalité d'affichage de l'app. Calibre la copy et la hiérarchie visuelle.
+ * Ne masque jamais l'info médicale critique.
+ *  - medical  : données brutes, vocabulaire clinique
+ *  - balanced : reformulation + chiffres contextualisés (défaut)
+ *  - soft     : langage chaleureux, focus actions, stats en accordéon
+ */
+export type TonePreference = "medical" | "balanced" | "soft";
+
 export type DocumentType =
   | "anapath"
   | "biologie"
@@ -100,6 +109,7 @@ export interface Database {
           role: Role;
           display_name: string;
           relation: string | null;
+          tone_preference: TonePreference;
           created_at: string;
         };
         Insert: {
@@ -109,6 +119,7 @@ export interface Database {
           role: Role;
           display_name: string;
           relation?: string | null;
+          tone_preference?: TonePreference;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["family_members"]["Insert"]>;

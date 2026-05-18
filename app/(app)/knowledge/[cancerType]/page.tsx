@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import KnowledgeBaseView from "@/components/knowledge/KnowledgeBaseView";
+import { getToneForUser } from "@/lib/tone-server";
 import KickoffButton from "@/components/knowledge/KickoffButton";
 import { CANCER_PROFILES } from "@/lib/cancer-profiles";
 import type { CancerKnowledge } from "@/lib/knowledge-prompts";
@@ -86,6 +87,8 @@ export default async function KnowledgePage({ params }: PageProps) {
     sources: asArray<CancerKnowledge["sources"][number]>(kb.sources),
   };
 
+  const tone = await getToneForUser();
+
   return (
     <KnowledgeBaseView
       cancerType={kb.cancer_type}
@@ -94,6 +97,7 @@ export default async function KnowledgePage({ params }: PageProps) {
       generatedAt={kb.generated_at}
       version={kb.version}
       data={data}
+      tone={tone}
     />
   );
 }

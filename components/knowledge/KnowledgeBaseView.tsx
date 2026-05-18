@@ -67,6 +67,8 @@ interface KbProps {
   generatedAt: string;
   version: number;
   data: CancerKnowledge;
+  /** Tonalité (medical/balanced/soft) — change ordre + accordéons. */
+  tone?: import("@/lib/tone").TonePreference;
 }
 
 /**
@@ -81,6 +83,7 @@ export default function KnowledgeBaseView({
   generatedAt,
   version,
   data,
+  tone = "balanced",
 }: KbProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -247,16 +250,26 @@ export default function KnowledgeBaseView({
         })}
       </nav>
 
-      {/* Sections du tab actif */}
+      {/* Sections du tab actif. En mode soft, les sections "overview" et
+          "staging_classification" sont repliées par défaut pour éviter de
+          mettre les stats brutes en premier plan. */}
       <div className="space-y-4">
-        {KNOWLEDGE_TABS.find((t) => t.id === activeTab)?.sections.map((sec, idx) => (
-          <SectionRenderer
-            key={sec}
-            sectionId={sec}
-            data={data}
-            defaultOpen={idx === 0}
-          />
-        ))}
+        {KNOWLEDGE_TABS.find((t) => t.id === activeTab)?.sections.map(
+          (sec, idx) => {
+            const isSensitive =
+              sec === "overview" || sec === "staging_classification";
+            const defaultOpen =
+              tone === "soft" && isSensitive ? false : idx === 0;
+            return (
+              <SectionRenderer
+                key={sec}
+                sectionId={sec}
+                data={data}
+                defaultOpen={defaultOpen}
+              />
+            );
+          },
+        )}
       </div>
 
       <p className="text-xs text-muted-soft text-center pt-4 max-w-2xl mx-auto">

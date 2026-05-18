@@ -9,6 +9,7 @@ import type { DocumentAnalysisResult } from "@/lib/prompts";
 import type { DecisionRow } from "@/lib/decisions";
 import type { Medication } from "@/lib/medications-helpers";
 import type { CareTeamMember } from "@/lib/care-team";
+import { getToneForUser } from "@/lib/tone-server";
 import { formatDateFr, formatDateShort } from "@/lib/dates";
 import { ArrowLeft, FileText, Download, User, GitBranch } from "lucide-react";
 
@@ -80,6 +81,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 
   const careTeam = (cancerProfile?.care_team as unknown as CareTeamMember[]) ?? [];
   const prescriptions = analysis?.prescriptions ?? [];
+  const tone = await getToneForUser();
 
   // Si on a un PDF stocké, générer une URL signée (1h) pour le téléchargement
   let downloadUrl: string | null = null;
@@ -180,7 +182,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
       </header>
 
       {analysis ? (
-        <AnalysisTabs result={analysis} hideTitle />
+        <AnalysisTabs result={analysis} hideTitle tone={tone} />
       ) : (
         <div className="rounded-xl border border-hairline bg-surface-card p-6 text-center">
           <p className="text-sm text-muted">

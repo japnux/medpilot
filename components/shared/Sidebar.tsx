@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Sparkles,
   HelpCircle,
+  Leaf,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -285,8 +286,21 @@ export default function Sidebar({
           })}
         </nav>
 
-        {/* Pied : Nouveautés + Admin (si autorisé) + Paramètres + Déconnexion */}
+        {/* Pied : Espace souffle + Nouveautés + Admin + Paramètres + Déconnexion */}
         <div className="pt-3 mt-3 border-t border-hairline space-y-0.5">
+          <Link
+            href="/espace"
+            onClick={() => setMobileOpen(false)}
+            title={collapsed ? "Espace souffle" : undefined}
+            className={`flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-colors ${
+              pathname.startsWith("/espace")
+                ? "bg-surface-card text-ink"
+                : "text-body hover:text-ink hover:bg-surface-card"
+            } ${collapsed ? "justify-center" : ""}`}
+          >
+            <Leaf className="w-4 h-4 shrink-0 text-emerald-700" />
+            {!collapsed && <span>Espace souffle</span>}
+          </Link>
           <Link
             href="/changelog"
             onClick={() => setMobileOpen(false)}

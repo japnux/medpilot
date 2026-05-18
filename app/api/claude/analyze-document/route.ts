@@ -3,6 +3,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { callClaudeJson } from "@/lib/anthropic";
 import { logApiUsage } from "@/lib/usage-tracker";
+import { buildToneInstructions } from "@/lib/tone";
+import { getToneForUser } from "@/lib/tone-server";
 
 // Claude Opus avec PDF peut prendre 30-60s : timeout généreux
 export const maxDuration = 90;
@@ -90,10 +92,12 @@ export async function POST(request: NextRequest) {
   const medicationsBlock = await enrichWithMedications(supabase, family_id);
 
   const ctx = buildPromptContext(profile);
+  const tone = await getToneForUser();
   const system =
     interpolate(DOCUMENT_ANALYSIS_PROMPT, ctx) +
     buildKnowledgeContextBlock(kb) +
-    medicationsBlock;
+    medicationsBlock +
+    buildToneInstructions(tone);
 
   // Construction du message utilisateur : texte fourni OU instruction d'analyse du PDF joint
   const userMessage = text && text.trim().length >= 20

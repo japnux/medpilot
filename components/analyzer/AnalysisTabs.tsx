@@ -2,19 +2,39 @@
 
 import { useState } from "react";
 import type { DocumentAnalysisResult } from "@/lib/prompts";
-import { ThumbsUp, AlertCircle, Stethoscope, FileText, Copy, Check } from "lucide-react";
+import {
+  ThumbsUp,
+  AlertCircle,
+  Stethoscope,
+  FileText,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
+import {
+  applyToneToText,
+  concerningPointsClass,
+  shouldOpenConcerningByDefault,
+  type TonePreference,
+} from "@/lib/tone";
 
 interface Props {
   result: DocumentAnalysisResult;
   /** Masque le titre/date dans le header (utile quand le parent les affiche déjà). */
   hideTitle?: boolean;
+  /** Tonalité d'affichage (défaut balanced). */
+  tone?: TonePreference;
 }
 
 type Tab = "family" | "clinical" | "points" | "questions";
 
-export default function AnalysisTabs({ result, hideTitle }: Props) {
+export default function AnalysisTabs({ result, hideTitle, tone = "balanced" }: Props) {
   const [tab, setTab] = useState<Tab>("family");
   const [copied, setCopied] = useState(false);
+  const [concerningOpen, setConcerningOpen] = useState(
+    shouldOpenConcerningByDefault(tone),
+  );
 
   const tabs: Array<{ key: Tab; label: string }> = [
     { key: "family", label: "Résumé" },
@@ -139,6 +159,7 @@ export default function AnalysisTabs({ result, hideTitle }: Props) {
 
         {tab === "points" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* En mode soft : Favorables d'abord (et toujours ouvert). */}
             <section className="rounded-lg border border-success/30 bg-success/5 p-4">
               <h4 className="text-sm font-medium text-success flex items-center gap-2 mb-2">
                 <ThumbsUp className="w-4 h-4" /> Favorables
@@ -147,21 +168,45 @@ export default function AnalysisTabs({ result, hideTitle }: Props) {
                 {result.favorable_points.length === 0 ? (
                   <li className="text-muted italic">Aucun point particulier</li>
                 ) : (
-                  result.favorable_points.map((p, i) => <li key={i}>• {p}</li>)
+                  result.favorable_points.map((p, i) => (
+                    <li key={i}>• {applyToneToText(p, tone)}</li>
+                  ))
                 )}
               </ul>
             </section>
-            <section className="rounded-lg border border-warning/30 bg-warning/5 p-4">
-              <h4 className="text-sm font-medium text-warning flex items-center gap-2 mb-2">
-                <AlertCircle className="w-4 h-4" /> Préoccupants
-              </h4>
-              <ul className="space-y-1.5 text-xs text-body-strong">
-                {result.concerning_points.length === 0 ? (
-                  <li className="text-muted italic">Aucun</li>
+            {/* Préoccupants : encart doux en soft, plié par défaut. */}
+            <section
+              className={`rounded-lg border p-4 ${concerningPointsClass(tone)}`}
+            >
+              <button
+                type="button"
+                onClick={() => setConcerningOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-2"
+                aria-expanded={concerningOpen}
+              >
+                <span className="text-sm font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  {tone === "soft"
+                    ? "Points à aborder avec l'équipe"
+                    : "Préoccupants"}
+                </span>
+                {concerningOpen ? (
+                  <ChevronDown className="w-4 h-4" />
                 ) : (
-                  result.concerning_points.map((p, i) => <li key={i}>• {p}</li>)
+                  <ChevronRight className="w-4 h-4" />
                 )}
-              </ul>
+              </button>
+              {concerningOpen && (
+                <ul className="space-y-1.5 text-xs text-body-strong mt-2">
+                  {result.concerning_points.length === 0 ? (
+                    <li className="text-muted italic">Aucun</li>
+                  ) : (
+                    result.concerning_points.map((p, i) => (
+                      <li key={i}>• {applyToneToText(p, tone)}</li>
+                    ))
+                  )}
+                </ul>
+              )}
             </section>
           </div>
         )}

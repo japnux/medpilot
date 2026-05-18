@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { callClaudeJson } from "@/lib/anthropic";
 import { logApiUsage } from "@/lib/usage-tracker";
+import { buildToneInstructions } from "@/lib/tone";
+import { getToneForUser } from "@/lib/tone-server";
 import {
   buildPromptContext,
   DOCUMENT_ANALYSIS_PROMPT,
@@ -89,10 +91,12 @@ export async function POST(
   const { enrichWithMedications } = await import("@/lib/medications-context");
   const medicationsBlock = await enrichWithMedications(supabase, doc.family_id);
   const ctx = buildPromptContext(profile);
+  const tone = await getToneForUser();
   const system =
     interpolate(DOCUMENT_ANALYSIS_PROMPT, ctx) +
     buildKnowledgeContextBlock(kb) +
-    medicationsBlock;
+    medicationsBlock +
+    buildToneInstructions(tone);
 
   const t0 = Date.now();
   let result;

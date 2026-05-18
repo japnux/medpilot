@@ -3,6 +3,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { callClaudeJson } from "@/lib/anthropic";
 import { logApiUsage } from "@/lib/usage-tracker";
+import { buildToneInstructions } from "@/lib/tone";
+import { getToneForUser } from "@/lib/tone-server";
 import {
   buildPromptContext,
   CONSULTATION_PREP_PROMPT,
@@ -248,10 +250,12 @@ export async function POST(request: NextRequest) {
     consultation_date: consultation_date ?? "non précisée",
   };
 
+  const tone = await getToneForUser();
   const system =
     interpolate(CONSULTATION_PREP_PROMPT, ctx) +
     buildKnowledgeContextBlock(kb) +
-    medicationsBlock;
+    medicationsBlock +
+    buildToneInstructions(tone);
 
   const t0 = Date.now();
   try {
