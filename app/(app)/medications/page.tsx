@@ -26,6 +26,58 @@ export default async function MedicationsPage() {
 
   const familyId = membership.family_id;
 
+  // Auto-transition silencieuse : un médoc actif dont la date de fin est
+  // dépassée passe à 'stopped'. Couvre :
+  //  - les médocs avec ended_at fixé directement (extraction depuis ordo)
+  //  - les médocs avec un schedule dont la dernière étape est terminée
+  // Best-effort : si l'UPDATE échoue (RLS, conflit), on log et on continue.
+  const today = new Date().toISOString().slice(0, 10);
+  await supabase
+    .from("medications")
+    .update({
+      status: "stopped",
+      status_reason: "Fin du plan posologique",
+    })
+    .eq("family_id", familyId)
+    .eq("status", "active")
+    .not("ended_at", "is", null)
+    .lt("ended_at", today);
+
+  // Cas schedule : on identifie les médocs actifs dont la max(end_date) du
+  // schedule est passée, sans ended_at fixé.
+  const { data: scheduleEnds } = await supabase
+    .from("medication_schedule_steps")
+    .select("medication_id, end_date, medications!inner(family_id, status, ended_at)")
+    .eq("medications.family_id", familyId)
+    .eq("medications.status", "active")
+    .is("medications.ended_at", null)
+    .not("end_date", "is", null);
+
+  if (scheduleEnds && scheduleEnds.length > 0) {
+    const lastStepByMed = new Map<string, string>();
+    for (const s of scheduleEnds) {
+      const prev = lastStepByMed.get(s.medication_id);
+      if (!prev || s.end_date > prev) {
+        lastStepByMed.set(s.medication_id, s.end_date);
+      }
+    }
+    const expired = [...lastStepByMed.entries()]
+      .filter(([, end]) => end < today)
+      .map(([id, end]) => ({ id, end }));
+    if (expired.length > 0) {
+      for (const { id, end } of expired) {
+        await supabase
+          .from("medications")
+          .update({
+            status: "stopped",
+            status_reason: "Fin du plan posologique",
+            ended_at: end,
+          })
+          .eq("id", id);
+      }
+    }
+  }
+
   const [
     { data: profile },
     { data: medications },
