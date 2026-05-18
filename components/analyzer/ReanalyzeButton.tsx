@@ -1,24 +1,15 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Sparkles, X } from "lucide-react";
-
-interface ReanalyzeStats {
-  prescriptions_count: number;
-  decisions_count: number;
-  questions_count: number;
-  key_values_count: number;
-  surveillance_count: number;
-  analysis_updated_at: string;
-  duration_ms: number;
-}
+import { Loader2, Sparkles } from "lucide-react";
 
 /**
  * Bouton "Ré-analyser" : re-passe le PDF stocké à Claude pour rafraîchir
- * `analysis_summary`. Au succès, affiche un toast persistant avec les
- * compteurs (prescriptions, décisions, questions, …) pour confirmer
- * visuellement que la ré-analyse a tourné.
+ * `analysis_summary`. Pendant la requête, un overlay plein écran freeze
+ * l'UI du document (bloque les interactions + affiche un spinner).
+ * Pas de toast — l'overlay disparait quand la nouvelle analyse est prête
+ * et la page est re-fetched.
  */
 export default function ReanalyzeButton({
   documentId,
@@ -31,22 +22,12 @@ export default function ReanalyzeButton({
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<ReanalyzeStats | null>(null);
-
-  // Auto-dismiss du toast après 8 secondes (l'utilisateur peut aussi fermer
-  // manuellement). Les stats restent disponibles jusqu'à la fermeture.
-  useEffect(() => {
-    if (!success) return;
-    const t = setTimeout(() => setSuccess(null), 8000);
-    return () => clearTimeout(t);
-  }, [success]);
 
   async function run() {
     if (!confirm("Re-passer ce document à Claude ?\n(coût Opus 4.7 ~ 0,05€)"))
       return;
     setBusy(true);
     setError(null);
-    setSuccess(null);
     try {
       const res = await fetch(`/api/documents/${documentId}/reanalyze`, {
         method: "POST",
@@ -55,16 +36,15 @@ export default function ReanalyzeButton({
       if (!res.ok) {
         setError(data?.error ?? "Erreur inconnue");
       } else {
-        setSuccess({
-          prescriptions_count: data.prescriptions_count ?? 0,
-          decisions_count: data.decisions_count ?? 0,
-          questions_count: data.questions_count ?? 0,
-          key_values_count: data.key_values_count ?? 0,
-          surveillance_count: data.surveillance_count ?? 0,
-          analysis_updated_at: data.analysis_updated_at ?? new Date().toISOString(),
-          duration_ms: data.duration_ms ?? 0,
+        // router.refresh() recharge la page server-side → l'analyse est
+        // fraîche quand l'utilisateur reprend la main. On garde l'overlay
+        // jusqu'à ce que la transition soit terminée.
+        await new Promise<void>((resolve) => {
+          startTransition(() => {
+            router.refresh();
+            resolve();
+          });
         });
-        startTransition(() => router.refresh());
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -73,7 +53,7 @@ export default function ReanalyzeButton({
     }
   }
 
-  const disabled = busy || pending;
+  const isRunning = busy || pending;
 
   return (
     <>
@@ -81,76 +61,45 @@ export default function ReanalyzeButton({
         <button
           type="button"
           onClick={run}
-          disabled={disabled}
+          disabled={isRunning}
           className={`inline-flex items-center gap-1.5 text-xs h-9 px-3 rounded-md border border-hairline bg-canvas-soft text-body hover:text-ink hover:bg-surface-card disabled:opacity-50 transition-colors ${className ?? ""}`}
         >
           <Sparkles className={`w-3.5 h-3.5 ${busy ? "animate-pulse" : ""}`} />
-          {busy ? "Ré-analyse en cours…" : "Ré-analyser"}
+          {busy ? "Ré-analyse…" : "Ré-analyser"}
         </button>
         {error && (
-          <span className="text-[10px] text-error max-w-[200px] text-right">
+          <span className="text-[10px] text-error max-w-[220px] text-right">
             {error}
           </span>
         )}
       </div>
 
-      {success && <SuccessToast stats={success} onClose={() => setSuccess(null)} />}
+      {isRunning && <FreezeOverlay />}
     </>
   );
 }
 
-function SuccessToast({
-  stats,
-  onClose,
-}: {
-  stats: ReanalyzeStats;
-  onClose: () => void;
-}) {
-  const items: { label: string; count: number }[] = [
-    { label: "prescription", count: stats.prescriptions_count },
-    { label: "décision", count: stats.decisions_count },
-    { label: "question", count: stats.questions_count },
-    { label: "valeur clé", count: stats.key_values_count },
-    { label: "surveillance", count: stats.surveillance_count },
-  ].filter((i) => i.count > 0);
-
-  const seconds = (stats.duration_ms / 1000).toFixed(1);
-
+/**
+ * Overlay plein écran pendant la ré-analyse : bloque toutes les interactions
+ * sur la page et affiche un spinner centré. Le z-index est au-dessus du
+ * hamburger mobile (z-50) et de tout modal éventuel.
+ */
+function FreezeOverlay() {
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-success/40 bg-success/10 text-success-strong shadow-lg p-3 pr-9 animate-in slide-in-from-bottom-2">
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-md text-muted hover:text-ink hover:bg-canvas flex items-center justify-center"
-        aria-label="Fermer"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-      <div className="flex items-start gap-2">
-        <Check className="w-4 h-4 shrink-0 mt-0.5 text-success" />
-        <div className="text-xs space-y-1.5">
-          <p className="font-medium text-success">
-            Document ré-analysé en {seconds}s
+    <div
+      className="fixed inset-0 z-[60] bg-canvas/85 backdrop-blur-sm flex items-center justify-center cursor-wait"
+      role="alert"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <div className="flex flex-col items-center gap-3 rounded-xl bg-canvas border border-hairline shadow-lg px-6 py-5 max-w-xs text-center">
+        <Loader2 className="w-6 h-6 text-purple-600 animate-spin" />
+        <div>
+          <p className="text-sm font-medium text-ink">
+            Ré-analyse en cours
           </p>
-          {items.length === 0 ? (
-            <p className="text-body">
-              Analyse mise à jour. Aucun élément structuré extrait.
-            </p>
-          ) : (
-            <ul className="text-body space-y-0.5">
-              {items.map((it) => (
-                <li key={it.label}>
-                  • {it.count} {it.label}
-                  {it.count > 1 ? "s" : ""}{" "}
-                  {it.label === "prescription" || it.label === "décision"
-                    ? "extraite" + (it.count > 1 ? "s" : "")
-                    : ""}
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="text-muted text-[11px]">
-            La page s&apos;actualise automatiquement.
+          <p className="text-xs text-muted mt-1">
+            Claude relit le document. Cela peut prendre 20 à 40 secondes.
           </p>
         </div>
       </div>

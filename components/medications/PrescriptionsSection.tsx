@@ -192,8 +192,8 @@ export default function PrescriptionsSection({
             const hasSchedule = Array.isArray(p.schedule) && p.schedule.length > 0;
             const isScheduleOpen = openSchedule.has(idx);
             return (
-              <li key={idx} className="px-5 py-4">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
+              <li key={idx} className="px-4 sm:px-5 py-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-baseline gap-2 flex-wrap">
                       <h3 className="text-sm font-medium text-ink">
@@ -208,7 +208,9 @@ export default function PrescriptionsSection({
                         <span className="text-xs text-body">· {p.dosage}</span>
                       )}
                     </div>
-                    <p className="text-sm text-body">{p.posology}</p>
+                    <p className="text-sm text-body whitespace-pre-wrap break-words">
+                      {p.posology}
+                    </p>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
                       {p.indication && <span>💡 {p.indication}</span>}
                       {p.started_at && (
@@ -224,14 +226,16 @@ export default function PrescriptionsSection({
                         <button
                           type="button"
                           onClick={() => toggleSchedule(idx)}
-                          className="inline-flex items-center gap-1.5 text-xs text-fuchsia-700 hover:text-fuchsia-900 font-medium"
+                          className="flex items-center gap-1.5 text-xs text-fuchsia-700 hover:text-fuchsia-900 font-medium text-left"
                         >
-                          <Calendar className="w-3.5 h-3.5" />
-                          Plan posologique en {p.schedule!.length} paliers
+                          <Calendar className="w-3.5 h-3.5 shrink-0" />
+                          <span>
+                            Plan posologique en {p.schedule!.length} paliers
+                          </span>
                           {isScheduleOpen ? (
-                            <ChevronUp className="w-3 h-3" />
+                            <ChevronUp className="w-3 h-3 shrink-0" />
                           ) : (
-                            <ChevronDown className="w-3 h-3" />
+                            <ChevronDown className="w-3 h-3 shrink-0" />
                           )}
                         </button>
                         {isScheduleOpen && (
@@ -278,7 +282,7 @@ export default function PrescriptionsSection({
                     )}
                   </div>
 
-                  <div className="shrink-0 flex flex-col gap-1.5">
+                  <div className="shrink-0 flex flex-col gap-1.5 sm:items-end w-full sm:w-auto">
                     {match ? (
                       hasSchedule ? (
                         <button
@@ -292,10 +296,12 @@ export default function PrescriptionsSection({
                               dosage: p.dosage ?? null,
                             })
                           }
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-fuchsia-600 text-white hover:opacity-90 whitespace-nowrap"
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-fuchsia-600 text-white hover:opacity-90"
                         >
-                          <Calendar className="w-3.5 h-3.5" />
-                          Remplacer le plan ({p.schedule!.length} paliers)
+                          <Calendar className="w-3.5 h-3.5 shrink-0" />
+                          <span>
+                            Remplacer le plan ({p.schedule!.length} paliers)
+                          </span>
                         </button>
                       ) : (
                         <button
@@ -307,9 +313,9 @@ export default function PrescriptionsSection({
                               newDosage: p.dosage ?? undefined,
                             })
                           }
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-ink text-canvas hover:opacity-90 whitespace-nowrap"
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-ink text-canvas hover:opacity-90"
                         >
-                          <TrendingUp className="w-3.5 h-3.5" />
+                          <TrendingUp className="w-3.5 h-3.5 shrink-0" />
                           Mettre à jour la dose
                         </button>
                       )
@@ -322,12 +328,14 @@ export default function PrescriptionsSection({
                             schedule: p.schedule ?? [],
                           })
                         }
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-ink text-canvas hover:opacity-90 whitespace-nowrap"
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-ink text-canvas hover:opacity-90"
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        {hasSchedule
-                          ? `Ajouter (${p.schedule!.length} paliers)`
-                          : "Ajouter aux médicaments"}
+                        <Plus className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          {hasSchedule
+                            ? `Ajouter (${p.schedule!.length} paliers)`
+                            : "Ajouter aux médicaments"}
+                        </span>
                       </button>
                     )}
                   </div>
