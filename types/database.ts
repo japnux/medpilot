@@ -209,6 +209,7 @@ export interface Database {
           title: string;
           raw_text: string | null;
           analysis_summary: Json | null;
+          analysis_updated_at: string | null;
           doctor_name: string | null;
           storage_path: string | null;
           content_hash: string | null;
@@ -223,6 +224,7 @@ export interface Database {
           title: string;
           raw_text?: string | null;
           analysis_summary?: Json | null;
+          analysis_updated_at?: string | null;
           doctor_name?: string | null;
           storage_path?: string | null;
           content_hash?: string | null;

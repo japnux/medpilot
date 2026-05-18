@@ -35,7 +35,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   const { data: doc } = await supabase
     .from("medical_documents")
     .select(
-      "id, family_id, title, document_type, document_date, created_at, analysis_summary, raw_text, doctor_name, storage_path",
+      "id, family_id, title, document_type, document_date, created_at, analysis_updated_at, analysis_summary, raw_text, doctor_name, storage_path",
     )
     .eq("id", id)
     .maybeSingle();
@@ -137,7 +137,12 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                 </>
               )}
               <span className="text-muted-soft">·</span>
-              <span>analysé le {formatDateFr(doc.created_at)}</span>
+              <span title={`Importé le ${formatDateFr(doc.created_at)}`}>
+                {doc.analysis_updated_at &&
+                doc.analysis_updated_at !== doc.created_at
+                  ? `ré-analysé le ${formatDateFr(doc.analysis_updated_at)}`
+                  : `analysé le ${formatDateFr(doc.created_at)}`}
+              </span>
               {decisions && decisions.length > 0 && (
                 <>
                   <span className="text-muted-soft">·</span>

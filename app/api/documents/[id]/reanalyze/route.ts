@@ -134,20 +134,37 @@ export async function POST(
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 
-  // 6. Update analysis_summary
+  // 6. Update analysis_summary + horodatage de la ré-analyse
   const safe = JSON.parse(JSON.stringify(result.json));
+  const now = new Date().toISOString();
   const { error: upErr } = await supabase
     .from("medical_documents")
-    .update({ analysis_summary: safe })
+    .update({ analysis_summary: safe, analysis_updated_at: now })
     .eq("id", id);
   if (upErr) {
     return NextResponse.json({ error: upErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({
-    ok: true,
+  // Stats pour le toast côté client
+  const stats = {
     prescriptions_count: Array.isArray(safe.prescriptions)
       ? safe.prescriptions.length
       : 0,
-  });
+    decisions_count: Array.isArray(safe.decisions_required)
+      ? safe.decisions_required.length
+      : 0,
+    questions_count: Array.isArray(safe.questions_for_team)
+      ? safe.questions_for_team.length
+      : 0,
+    key_values_count: Array.isArray(safe.key_values)
+      ? safe.key_values.length
+      : 0,
+    surveillance_count: Array.isArray(safe.surveillance_triggered)
+      ? safe.surveillance_triggered.length
+      : 0,
+    analysis_updated_at: now,
+    duration_ms: Date.now() - t0,
+  };
+
+  return NextResponse.json({ ok: true, ...stats });
 }
