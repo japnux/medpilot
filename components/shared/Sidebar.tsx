@@ -64,6 +64,8 @@ interface SidebarProps {
   medicationsActiveCount?: number;
   /** Nombre de symptômes critiques non résolus (badge rouge sur Symptômes). */
   criticalSymptomsCount?: number;
+  /** Nombre de consultations à venir (badge sur l'entrée Consultation). */
+  upcomingConsultationsCount?: number;
 }
 
 const STORAGE_KEY = "medpilot:sidebar:collapsed";
@@ -75,6 +77,7 @@ export default function Sidebar({
   pendingDecisionsCount = 0,
   medicationsActiveCount,
   criticalSymptomsCount = 0,
+  upcomingConsultationsCount = 0,
 }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -106,7 +109,15 @@ export default function Sidebar({
       emoji: "🧬",
       tabs: BIOLOGIE_TABS,
     },
-    { href: "/consultation", label: "Consultation", emoji: "🩺" },
+    {
+      href: "/consultation",
+      label: "Consultation",
+      emoji: "🩺",
+      badge:
+        upcomingConsultationsCount > 0
+          ? upcomingConsultationsCount
+          : undefined,
+    },
     {
       href: "/decisions",
       label: "Décisions",

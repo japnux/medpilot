@@ -40,20 +40,30 @@ export default async function AppLayout({
       .eq("status", "active"),
   ]);
 
-  const [{ count: pendingDecisionsCount }, { count: criticalSymptomsCount }] =
-    await Promise.all([
-      supabase
-        .from("decisions")
-        .select("id", { count: "exact", head: true })
-        .eq("family_id", membership.family_id)
-        .eq("status", "pending"),
-      supabase
-        .from("symptom_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("family_id", membership.family_id)
-        .eq("is_critical", true)
-        .eq("is_resolved", false),
-    ]);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [
+    { count: pendingDecisionsCount },
+    { count: criticalSymptomsCount },
+    { count: upcomingConsultationsCount },
+  ] = await Promise.all([
+    supabase
+      .from("decisions")
+      .select("id", { count: "exact", head: true })
+      .eq("family_id", membership.family_id)
+      .eq("status", "pending"),
+    supabase
+      .from("symptom_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("family_id", membership.family_id)
+      .eq("is_critical", true)
+      .eq("is_resolved", false),
+    supabase
+      .from("consultations")
+      .select("id", { count: "exact", head: true })
+      .eq("family_id", membership.family_id)
+      .neq("status", "completed")
+      .gte("consultation_date", todayIso),
+  ]);
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -64,6 +74,7 @@ export default async function AppLayout({
         pendingDecisionsCount={pendingDecisionsCount ?? 0}
         medicationsActiveCount={medicationsActiveCount ?? 0}
         criticalSymptomsCount={criticalSymptomsCount ?? 0}
+        upcomingConsultationsCount={upcomingConsultationsCount ?? 0}
       />
       <div className="flex-1 flex flex-col min-w-0">
         {/* pt-14 sur mobile : réserve l'espace pour le burger fixed top-left */}
