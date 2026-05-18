@@ -158,9 +158,6 @@ function EventItem({
         )}
       </div>
       <h3 className="text-sm font-medium text-ink">{event.title}</h3>
-      {event.summary && (
-        <p className="text-xs text-muted mt-1 line-clamp-3">{event.summary}</p>
-      )}
     </div>
   );
 

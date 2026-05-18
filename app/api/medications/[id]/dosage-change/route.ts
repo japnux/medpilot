@@ -112,27 +112,10 @@ export async function POST(
     );
   }
 
-  // 4. Timeline event (best-effort, ne bloque pas la réponse)
-  const previousLabel = med.dosage ?? "?";
-  const eventTitle = `Ajustement ${med.name} : ${previousLabel} → ${data.new_dosage}`;
-  const summaryParts: string[] = [];
-  if (data.reason) summaryParts.push(data.reason);
-  if (data.prescriber) summaryParts.push(`Prescrit par ${data.prescriber}`);
-  if (data.new_posology) summaryParts.push(`Nouvelle posologie : ${data.new_posology}`);
-
-  try {
-    await supabase.from("timeline_events").insert({
-      family_id: med.family_id,
-      event_type: "treatment_adjustment",
-      event_date: changedAt,
-      title: eventTitle,
-      summary: summaryParts.join(" — ") || null,
-      linked_consultation_id: data.source_consultation_id ?? null,
-      linked_document_id: data.source_document_id ?? null,
-    });
-  } catch (e) {
-    console.warn("Insert timeline_events (treatment_adjustment) échoué", e);
-  }
+  // (Pas d'insertion timeline_events ici : les ajustements de dose ne sont
+  // plus surfacés sur la timeline pour limiter le bruit. L'historique reste
+  // accessible depuis la section « Historique des doses » de chaque carte
+  // médicament.)
 
   return NextResponse.json({ ok: true, change });
 }
