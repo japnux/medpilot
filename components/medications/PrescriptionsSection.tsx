@@ -10,6 +10,9 @@ import {
   Calendar,
   ChevronDown,
   ChevronUp,
+  AlertTriangle,
+  MinusCircle,
+  ShieldCheck,
 } from "lucide-react";
 import MedicationForm, {
   type CareTeamMember,
@@ -18,6 +21,11 @@ import MedicationForm, {
 import DosageChangeModal from "./DosageChangeModal";
 import type { Medication } from "@/lib/medications-helpers";
 import { findMatchingMedication } from "@/lib/medication-match";
+import {
+  comparePrescriptionWithMedication,
+  summarizeStates,
+  type PrescriptionDriftState,
+} from "@/lib/prescription-drift";
 import { formatDateShort } from "@/lib/dates";
 
 /** Un palier de schéma posologique extrait de l'ordonnance. */
@@ -172,25 +180,37 @@ export default function PrescriptionsSection({
     .map((c) => c.name)
     .filter((n): n is string => Boolean(n));
 
+  // Pré-calcul drift par prescription (utilisé pour le header + les badges)
+  const driftStates: PrescriptionDriftState[] = [];
+  const driftDetails: { state: PrescriptionDriftState; differences: string[] }[] = [];
+  for (const p of prescriptions) {
+    const match = findMatchingMedication(p, existingMedications);
+    const cmp = comparePrescriptionWithMedication(p, match);
+    driftStates.push(cmp.state);
+    driftDetails.push(cmp);
+  }
+  const summary = summarizeStates(driftStates);
+
   return (
     <>
       <section className="rounded-xl border border-hairline bg-canvas-soft overflow-hidden">
-        <header className="px-5 py-4 border-b border-hairline flex items-center gap-2">
-          <Pill className="w-4 h-4 text-fuchsia-600" />
+        <header className="px-4 sm:px-5 py-4 border-b border-hairline flex flex-wrap items-center gap-2">
+          <Pill className="w-4 h-4 text-fuchsia-600 shrink-0" />
           <h2 className="text-base font-medium text-ink">
             Prescriptions extraites
           </h2>
           <span className="text-xs text-muted">
-            ({prescriptions.length})
+            ({summary.total})
           </span>
+          <SyncSummary summary={summary} />
         </header>
 
         <ul className="divide-y divide-hairline">
           {prescriptions.map((p, idx) => {
             const match = findMatchingMedication(p, existingMedications);
-            const matchActive = match && match.status === "active";
             const hasSchedule = Array.isArray(p.schedule) && p.schedule.length > 0;
             const isScheduleOpen = openSchedule.has(idx);
+            const drift = driftDetails[idx];
             return (
               <li key={idx} className="px-4 sm:px-5 py-4">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -272,13 +292,11 @@ export default function PrescriptionsSection({
                     )}
 
                     {match && (
-                      <p className="text-xs text-emerald-700 flex items-center gap-1 mt-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Déjà saisi sous «&nbsp;{match.name}
-                        {match.brand_name ? ` (${match.brand_name})` : ""}
-                        &nbsp;»
-                        {matchActive ? " — actif" : ` — ${match.status}`}
-                      </p>
+                      <DriftBadge
+                        state={drift.state}
+                        differences={drift.differences}
+                        matchName={`${match.name}${match.brand_name ? ` (${match.brand_name})` : ""}`}
+                      />
                     )}
                   </div>
 
@@ -511,4 +529,113 @@ function validRoute(
   return (ALLOWED as readonly string[]).includes(r ?? "")
     ? (r as (typeof ALLOWED)[number])
     : "oral";
+}
+
+/**
+ * Pill de synthèse globale dans le header de la section : combien de
+ * prescriptions sont bien à jour dans /medications, combien diffèrent.
+ * Permet à l'utilisateur de savoir d'un coup d'œil si l'ordonnance est
+ * fidèlement reflétée dans le suivi.
+ */
+function SyncSummary({
+  summary,
+}: {
+  summary: {
+    synced: number;
+    drift: number;
+    stopped: number;
+    missing: number;
+    total: number;
+  };
+}) {
+  // Cas idéal : tout synchronisé
+  if (summary.synced === summary.total && summary.total > 0) {
+    return (
+      <span className="ml-auto inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <ShieldCheck className="w-3.5 h-3.5" />
+        Toutes les prescriptions sont à jour dans Médicaments
+      </span>
+    );
+  }
+  // Cas drift : il faut agir
+  if (summary.drift > 0) {
+    return (
+      <span className="ml-auto inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+        <AlertTriangle className="w-3.5 h-3.5" />
+        {summary.drift} prescription{summary.drift > 1 ? "s" : ""} à vérifier
+        {summary.synced > 0
+          ? ` · ${summary.synced} OK`
+          : ""}
+      </span>
+    );
+  }
+  // Sinon : mix synced + missing + stopped
+  const parts: string[] = [];
+  if (summary.synced > 0) parts.push(`${summary.synced} OK`);
+  if (summary.missing > 0)
+    parts.push(`${summary.missing} à ajouter`);
+  if (summary.stopped > 0)
+    parts.push(`${summary.stopped} sur médoc arrêté`);
+  return (
+    <span className="ml-auto inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-canvas border border-hairline text-muted">
+      {parts.join(" · ")}
+    </span>
+  );
+}
+
+/**
+ * Badge contextuel sous chaque carte prescription :
+ *  - synced : vert (la ligne est conforme à ce qu'il y a dans /medications)
+ *  - drift : orange avec détail des différences
+ *  - stopped : gris (le médoc existe mais est marqué arrêté/suspendu)
+ *  - missing : pas affiché (la carte a déjà un bouton « Ajouter »)
+ */
+function DriftBadge({
+  state,
+  differences,
+  matchName,
+}: {
+  state: PrescriptionDriftState;
+  differences: string[];
+  matchName: string;
+}) {
+  if (state === "missing") return null;
+
+  if (state === "synced") {
+    return (
+      <p className="text-xs text-emerald-700 flex items-center gap-1 mt-1">
+        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+        À jour dans «&nbsp;{matchName}&nbsp;»
+      </p>
+    );
+  }
+
+  if (state === "stopped") {
+    return (
+      <p className="text-xs text-muted flex items-center gap-1 mt-1">
+        <MinusCircle className="w-3.5 h-3.5 shrink-0" />
+        «&nbsp;{matchName}&nbsp;» est actuellement arrêté ou suspendu
+      </p>
+    );
+  }
+
+  // drift
+  return (
+    <div className="text-xs text-amber-700 mt-1 rounded-md bg-amber-50 border border-amber-200 p-2">
+      <p className="flex items-center gap-1 font-medium">
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+        Différent de «&nbsp;{matchName}&nbsp;»
+      </p>
+      {differences.length > 0 && (
+        <ul className="mt-1 ml-5 list-disc text-amber-700/90 space-y-0.5">
+          {differences.map((d, i) => (
+            <li key={i}>{d}</li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-1 ml-5 text-amber-700/90">
+        Utilise le bouton à droite pour synchroniser.
+      </p>
+    </div>
+  );
 }
