@@ -235,16 +235,18 @@ function EventItem({
     <div
       className={`rounded-lg border p-3 transition-colors ${cardBg} ${href ? "hover:bg-surface-strong" : ""}`}
     >
-      <div className="flex items-baseline gap-2 flex-wrap mb-1">
+      {/* items-center : les pills (avec ou sans icône) ont des hauteurs
+          différentes, items-baseline les désalignerait verticalement. */}
+      <div className="flex items-center gap-2 flex-wrap mb-1">
         <span className="text-xs text-muted">
           {formatDateFr(event.event_date)}
         </span>
         <span
-          className="px-1.5 py-0.5 rounded text-[10px]"
+          className="inline-flex items-center text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border"
           style={{
             color: meta.color,
             backgroundColor: `${meta.color}1a`,
-            border: `1px solid ${meta.color}40`,
+            borderColor: `${meta.color}40`,
           }}
         >
           {meta.label}
