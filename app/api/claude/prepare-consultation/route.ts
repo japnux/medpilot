@@ -266,14 +266,14 @@ export async function POST(request: NextRequest) {
   const t0 = Date.now();
   try {
     const result = await callClaudeJson<ConsultationPrepResult>({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       system,
       user: `Génère la préparation JSON pour la consultation ${consultation_type}${doctor_name ? ` avec ${doctor_name}` : ""}.`,
       max_tokens: 16384,
     });
     await logApiUsage({
       endpoint: "claude/prepare-consultation",
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       input_tokens: result.usage.input_tokens,
       output_tokens: result.usage.output_tokens,
       family_id,
@@ -315,7 +315,7 @@ export async function POST(request: NextRequest) {
     const msg = e instanceof Error ? e.message : "Erreur Claude";
     await logApiUsage({
       endpoint: "claude/prepare-consultation",
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       input_tokens: 0,
       output_tokens: 0,
       family_id,
