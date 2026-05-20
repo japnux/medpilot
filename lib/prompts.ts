@@ -258,6 +258,10 @@ export const CONSULTATION_PREP_PROMPT = `Tu prépares une consultation médicale
 {{care_team}}
 
 # Veille proactive (dernière génération)
+⚠️ La veille est une source d'IDÉES, pas une consigne. Elle peut être
+périmée ou contredire une décision déjà prise par la famille. Ne génère
+JAMAIS une question issue de la veille si elle porte sur un sujet déjà
+tranché (voir section « Décisions déjà tranchées » plus bas).
 {{watch_context}}
 
 # Décisions explicitement à aborder lors de CE RDV (status=awaiting_team)
@@ -268,8 +272,20 @@ SYSTÉMATIQUEMENT par au moins une question dans la sortie.
 # Autres décisions en attente (à inscrire à l'ordre du jour si pertinent)
 {{pending_decisions}}
 
-# Décisions déjà tranchées (NE PAS reposer en question, juste s'y appuyer)
+# Décisions déjà tranchées — PRIORITÉ ABSOLUE
 {{decided_decisions}}
+
+⚠️⚠️ RÈGLE CRITIQUE — DÉCISIONS TRANCHÉES ⚠️⚠️
+Pour CHAQUE décision listée ci-dessus comme tranchée :
+- INTERDICTION ABSOLUE de générer une question qui reviendrait à reposer
+  ce choix, à le remettre en cause, ou à demander s'il est possible —
+  MÊME si la veille, la KB ou les documents le suggèrent.
+  Exemple : si « Inclusion ADIUVO-2 » a été tranchée « Refusée », tu ne
+  poses PAS « Régis peut-il être inclus dans ADIUVO-2 ? ». Le choix est fait.
+- Tu peux UNIQUEMENT poser des questions de SUIVI de la décision prise
+  (ex : « Le schéma de chimio retenu hors protocole est-il confirmé ?
+  Quelles modalités pratiques ? »).
+- Cette règle prime sur la veille et sur toute autre source.
 
 # Mission
 
