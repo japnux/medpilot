@@ -29,25 +29,27 @@ export default function ShareConsultationButton({
   const [copied, setCopied] = useState(false);
 
   function buildMessage(): string {
-    const lines: string[] = [];
+    const blocks: string[] = [];
 
-    // En-tête
+    // En-tête (un seul titre — pas de title passé à navigator.share)
     const typeLabel = consultationType
       ? consultationType[0].toUpperCase() + consultationType.slice(1)
       : "Consultation";
-    lines.push(`*Consultation ${typeLabel} — ${formatDateFr(consultationDate)}*`);
+    const headerLines = [
+      `🩺 *Consultation ${typeLabel}*`,
+      `📅 ${formatDateFr(consultationDate)}`,
+    ];
     const subParts = [doctorName, hospital].filter(Boolean);
-    if (subParts.length > 0) lines.push(subParts.join(" · "));
+    if (subParts.length > 0) headerLines.push(subParts.join(" · "));
+    blocks.push(headerLines.join("\n"));
 
     if (prep?.consultation_summary) {
-      lines.push("");
-      lines.push(`_${prep.consultation_summary}_`);
+      blocks.push(`_${prep.consultation_summary}_`);
     }
 
     // Questions (avec réponses si déjà notées)
     if (prep?.questions && prep.questions.length > 0) {
-      lines.push("");
-      lines.push("*Questions à poser*");
+      const lines = ["❓ *Questions à poser*", ""];
       prep.questions.forEach((q, i) => {
         const star = q.priority === "high" ? " ⭐" : "";
         lines.push(`${i + 1}. ${q.question}${star}`);
@@ -55,13 +57,14 @@ export default function ShareConsultationButton({
           lines.push(`   ↳ ${q.answer.trim()}`);
         }
       });
+      blocks.push(lines.join("\n"));
     }
 
     // Documents à apporter
     if (prep?.documents_to_bring && prep.documents_to_bring.length > 0) {
-      lines.push("");
-      lines.push("*Documents à apporter*");
+      const lines = ["📄 *Documents à apporter*", ""];
       for (const d of prep.documents_to_bring) lines.push(`• ${d}`);
+      blocks.push(lines.join("\n"));
     }
 
     // À documenter pendant le RDV
@@ -69,26 +72,26 @@ export default function ShareConsultationButton({
       prep?.watch_for_during_consult &&
       prep.watch_for_during_consult.length > 0
     ) {
-      lines.push("");
-      lines.push("*À noter pendant le RDV*");
+      const lines = ["✏️ *À noter pendant le RDV*", ""];
       for (const w of prep.watch_for_during_consult) lines.push(`• ${w}`);
+      blocks.push(lines.join("\n"));
     }
 
-    lines.push("");
-    lines.push("— Préparé avec MedPilot");
+    blocks.push("🌿 Préparé avec MedPilot");
 
-    return lines.join("\n");
+    // Double saut de ligne entre les blocs → sections bien aérées sur WhatsApp
+    return blocks.join("\n\n\n");
   }
 
   async function share() {
     const message = buildMessage();
-    const title = `Consultation ${consultationType ?? ""} — ${formatDateFr(consultationDate)}`;
 
     // 1. API de partage native (mobile : ouvre la feuille de partage iOS/Android
-    //    avec WhatsApp dedans). On teste navigator.share.
+    //    avec WhatsApp dedans). On ne passe QUE `text` — passer aussi `title`
+    //    fait que WhatsApp préfixe le titre au message → double titre.
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
-        await navigator.share({ title, text: message });
+        await navigator.share({ text: message });
         return;
       } catch (e) {
         // L'utilisateur a annulé le partage : on ne fait rien.
