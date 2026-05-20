@@ -52,6 +52,55 @@ function getClient(): Anthropic {
 }
 
 /**
+ * Wrapper messages.create avec retry exponentiel sur les erreurs
+ * transitoires de l'API Anthropic :
+ *  - 529 overloaded_error (modèle saturé)
+ *  - 429 rate_limit_error
+ *  - 500/502/503 (erreurs serveur passagères)
+ *
+ * 3 tentatives max, backoff 1s → 2s → 4s (+ jitter). Les erreurs
+ * non-transitoires (400 invalid_request, 401 auth…) ne sont pas retry.
+ */
+async function createWithRetry(
+  client: Anthropic,
+  params: Anthropic.MessageCreateParamsNonStreaming,
+  maxAttempts = 3,
+): Promise<Anthropic.Message> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await client.messages.create(params);
+    } catch (e) {
+      lastErr = e;
+      const status =
+        e instanceof Anthropic.APIError ? e.status : undefined;
+      const isTransient =
+        status === 529 ||
+        status === 429 ||
+        status === 500 ||
+        status === 502 ||
+        status === 503;
+      if (!isTransient) throw e;
+      if (attempt === maxAttempts) {
+        // Toutes les tentatives ont échoué sur une erreur transitoire :
+        // message clair côté utilisateur plutôt qu'un cryptique "Overloaded".
+        throw new Error(
+          status === 529 || status === 429
+            ? "Le service IA est momentanément saturé. Réessaie dans une minute."
+            : "Le service IA est temporairement indisponible. Réessaie dans un instant.",
+        );
+      }
+      const delayMs = 1000 * 2 ** (attempt - 1) + Math.random() * 400;
+      console.warn(
+        `[anthropic] tentative ${attempt}/${maxAttempts} échouée (${status}), retry dans ${Math.round(delayMs)}ms`,
+      );
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw lastErr;
+}
+
+/**
  * Appel Claude qui attend une réponse JSON.
  * Fait du parsing tolérant : strip ``` fences, extrait entre première { et dernière }.
  */
@@ -81,7 +130,7 @@ export async function callClaudeJson<T = unknown>(
       ]
     : [{ role: "user", content: opts.user }];
 
-  const response = await client.messages.create({
+  const response = await createWithRetry(client, {
     model: opts.model ?? "claude-opus-4-7",
     max_tokens: opts.max_tokens ?? 4096,
     system: opts.system,
