@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import EditConsultationModal from "./EditConsultationModal";
+import ShareConsultationButton from "./ShareConsultationButton";
 
 interface Consultation {
   id: string;
@@ -165,14 +166,23 @@ export default function DuringConsultClient({
               </span>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="shrink-0 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-hairline-strong text-body hover:text-ink hover:bg-surface-card"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            Modifier
-          </button>
+          <div className="shrink-0 flex items-center gap-2">
+            <ShareConsultationButton
+              consultationType={consultation.consultation_type}
+              consultationDate={consultation.consultation_date}
+              doctorName={consultation.doctor_name}
+              hospital={consultation.hospital}
+              prep={prep}
+            />
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-hairline-strong text-body hover:text-ink hover:bg-surface-card"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Modifier
+            </button>
+          </div>
         </div>
         <p className="text-sm text-muted mt-1">
           {formatDateFr(consultation.consultation_date)}
