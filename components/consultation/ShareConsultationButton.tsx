@@ -79,8 +79,12 @@ export default function ShareConsultationButton({
 
     blocks.push("🌿 Préparé avec MedPilot");
 
-    // Double saut de ligne entre les blocs → sections bien aérées sur WhatsApp
-    return blocks.join("\n\n\n");
+    // Séparateur VISIBLE entre les blocs : certaines apps (WhatsApp,
+    // Messages…) écrasent les lignes vides consécutives, donc une simple
+    // succession de \n ne suffit pas à aérer. Une ligne de caractères
+    // garantit une coupure nette quoi qu'il arrive.
+    const separator = "\n\n┄┄┄┄┄┄┄┄┄┄\n\n";
+    return blocks.join(separator);
   }
 
   async function share() {
