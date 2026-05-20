@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     if (cached && cached.data_version === dataVersion) {
       await logApiUsage({
         endpoint: "biology/analyze-trends",
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-opus-4-7",
         input_tokens: 0,
         output_tokens: 0,
         cached: true,
@@ -225,14 +225,14 @@ Génère l'analyse en JSON.`;
   const t0 = Date.now();
   try {
     const result = await callClaudeJson<TrendInsight>({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-opus-4-7",
       system,
       user: user_message,
       max_tokens: 2048,
     });
     await logApiUsage({
       endpoint: "biology/analyze-trends",
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-opus-4-7",
       input_tokens: result.usage.input_tokens,
       output_tokens: result.usage.output_tokens,
       family_id,
@@ -249,7 +249,7 @@ Génère l'analyse en JSON.`;
           cache_type: "biology_trends",
           data_version: dataVersion,
           content: JSON.parse(JSON.stringify(result.json)),
-          model: "claude-haiku-4-5-20251001",
+          model: "claude-opus-4-7",
           input_tokens: result.usage.input_tokens,
           output_tokens: result.usage.output_tokens,
         },
@@ -265,7 +265,7 @@ Génère l'analyse en JSON.`;
     const msg = e instanceof Error ? e.message : "Erreur Claude";
     await logApiUsage({
       endpoint: "biology/analyze-trends",
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-opus-4-7",
       input_tokens: 0,
       output_tokens: 0,
       family_id,
